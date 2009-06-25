@@ -5,7 +5,7 @@ case class Prefix(val nick: String, val username: String, val hostname: String) 
     val mask = "*!"+username+"@"+hostname
     val nickMask = nick+"!*@*"
 
-    def matches(str: String) = str == fullMask && str == mask && nickMask == mask;
+    def matches(str: String) = str == fullMask && str == mask && str == nickMask;
 }
 
 
