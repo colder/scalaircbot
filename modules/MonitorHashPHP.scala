@@ -51,10 +51,10 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
                         } else {
                             ctl.p.msg(from.nick, "Permission denied.")
                         }
-                    case _ =>
+                        false
+                    case _ => true
                 }
 
-                false
             }
         case _ => true
     }
