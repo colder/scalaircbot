@@ -34,7 +34,7 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
                 words(msg, 2) match {
                     case "!unban" :: mask :: Nil =>
                         if (isGranted(ctl, from, Manager, Administrator)) {
-                            if (!isOp) { op }
+                            op
 
                             var n = 0;
                             for (mute <- muteList) {
@@ -103,7 +103,7 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
     }
 
     def mute(prefix: Prefix, duration: Long) = {
-        if (!isOp) { op }
+        op
 
         if (!(muteList contains prefix)) {
             ctl.p.mute(channel, prefix.nickMask)
@@ -119,7 +119,7 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
         val toRemove = muteList filter { x => (System.currentTimeMillis/1000)-x._2._2 > x._2._1 } toList;
 
         if (toRemove.length > 0) {
-            if (!isOp) { op }
+            op
 
             for (mute <- toRemove ) {
                 unmute(mute._1)
