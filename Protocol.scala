@@ -1,6 +1,12 @@
 package ircbot;
 
-case class Prefix(val nick: String, val username: String, val hostname: String)
+case class Prefix(val nick: String, val username: String, val hostname: String) {
+    val fullMask = nick+"!"+username+"@"+hostname
+    val mask = "*!"+username+"@"+hostname
+    val nickMask = nick+"!*@*"
+
+    def matches(str: String) = str == fullMask && str == mask && nickMask == mask;
+}
 
 
 object Prefix {
@@ -144,6 +150,27 @@ class Protocol(conn: Connection) {
 
     def kick(channel: String, nick: String) =
         conn.writeLine("KICK "+channel+" "+nick)
+
+    def mode(channel: String, mode: String, nick: String) =
+        conn.writeLine("MODE "+channel+" "+mode+" "+nick)
+
+    def op(channel: String, nick: String) =
+        mode(channel, "+o", nick)
+
+    def deop(channel: String, nick: String) =
+        mode(channel, "-o", nick)
+
+    def ban(channel: String, mask: String) =
+        mode(channel, "+b", mask)
+
+    def unban(channel: String, mask: String) =
+        mode(channel, "-b", mask)
+
+    def mute(channel: String, mask: String) =
+        mode(channel, "+q", mask)
+
+    def unmute(channel: String, mask: String) =
+        mode(channel, "-q", mask)
 
     def kick(channel: String, nick: String, reason: String) =
         conn.writeLine("KICK "+channel+" "+nick+": "+reason)

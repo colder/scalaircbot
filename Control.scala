@@ -3,7 +3,7 @@ package ircbot
 import sql.MysqlConnection
 
 // implements the IRC protocol
-class Control(host: String, port: Int, dbname: String, dbuser: String, dbpass: String) {
+class Control(host: String, port: Int, dbname: String, dbuser: String, dbpass: String, val nick: String) {
 
     /* Wrapping around the socket to implement the IRC protocol */
     val p = new Protocol(new Connection(host, port))
@@ -37,8 +37,9 @@ class Control(host: String, port: Int, dbname: String, dbuser: String, dbpass: S
     def error(msg: String) =
         println("[!] "+msg);
 
-    def auth(nick: String, hostname: String, servername: String, realname: String, password: Option[String]) =
-        moduleProtocol.scheduleRegistration(nick, hostname, servername, realname, password)
+    def auth(hostname: String, servername: String, realname: String, password: Option[String]) = {
+        moduleProtocol.scheduleRegistration(hostname, servername, realname, password)
+    }
 
 
     def dispatchMessage(message: Message) {

@@ -23,8 +23,8 @@ object Main {
             val authNick = (auth \ "@nick").text
             val authPass = (auth \ "@pass").text
 
-            val bot = new Control(hostHost, hostPort, dbDatabase, dbUser, dbPass)
-            bot auth(authNick, authNick, authNick, "Mr Bot", Some(authPass))
+            val bot = new Control(hostHost, hostPort, dbDatabase, dbUser, dbPass, authNick)
+            bot auth(authNick, authNick, "Mr Bot", Some(authPass))
             bot start
         }
     }
