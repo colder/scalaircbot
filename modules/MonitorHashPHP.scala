@@ -22,10 +22,18 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
                 // checks that no nick sends more than n msg per m sec
                 addMessage(from.nick)
 
-                if (!isGranted(ctl, from, Normal, Manager, Administrator) && isFlooding(from.nick)) {
-                    ctl.p.msg("ekneuss", "KICKING "+from.nick+"!")
-                    mute(from, 300)
-                    messages -= from.nick
+                if (!isGranted(ctl, from, Normal, Manager, Administrator)) {
+                    if (isFlooding(from.nick)) {
+                        ctl.p.msg("ekneuss", "KICKING "+from.nick+"!")
+                        mute(from, 300)
+                        messages -= from.nick
+                    } else {
+                        // check for u
+                        val ws = words(msg)
+                        if ((ws contains "u") && (ws forall { _.matches("^[a-zA-Z0-9]+$") })) {
+                            ctl.p.msg("ekneuss", "U: "+msg)
+                        }
+                    }
                 }
 
                 cleanupMessages
