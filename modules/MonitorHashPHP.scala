@@ -24,15 +24,8 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
 
                 if (!isGranted(ctl, from, Normal, Manager, Administrator)) {
                     if (isFlooding(from.nick)) {
-                        ctl.p.msg("ekneuss", "KICKING "+from.nick+"!")
                         mute(from, 300)
                         messages -= from.nick
-                    } else {
-                        // check for u
-                        val ws = words(msg)
-                        if ((ws contains "u") && (ws forall { _.matches("^[a-zA-Z0-9]+$") })) {
-                            ctl.p.msg("ekneuss", "U: "+msg)
-                        }
                     }
                 }
 

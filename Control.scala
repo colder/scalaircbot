@@ -2,46 +2,43 @@ package ircbot
 
 import sql.MysqlConnection
 
-// implements the IRC protocol
-class Control(host: String, port: Int, dbname: String, dbuser: String, dbpass: String, val nick: String) {
+// Main controlling class
+class Control(val cfg: Config) {
 
     /* Wrapping around the socket to implement the IRC protocol */
-    val p = new Protocol(new Connection(host, port))
+    val p = new Protocol(new Connection(cfg.hostHost, cfg.hostPort))
 
     /* Database connection */
-    val db = new MysqlConnection(dbname, dbuser, dbpass)
+    val db = new MysqlConnection(cfg.dbDatabase, cfg.dbUser, cfg.dbPass)
 
-
-    /* Main modules */
-    val moduleProtocol = new modules.Protocol(this)
-    val moduleChannel  = new modules.Channel(this)
-    val moduleManager  = new modules.Manager(this)
+    /* nickname of the bot */
+    val nick = cfg.authNick
 
     /* List holding the loaded modules */
     var modulesList: List[Module] = Nil
 
+    /* Register a specific module */
     def registerModule(module: Module) {
         modulesList = modulesList ::: module :: Nil
         module init
     }
 
+    /* Register all default modules */
     def registerDefaultModules {
-        registerModule(moduleProtocol)
-        registerModule(moduleChannel)
-        registerModule(moduleManager)
+        import modules._
+        registerModule(new Protocol(this))
+        registerModule(new Channel(this))
+        registerModule(new Manager(this))
+        registerModule(new MonitorHashPHP(this))
+        registerModule(new Factoids(this))
 
-        registerModule(new modules.MonitorHashPHP(this))
-        registerModule(new modules.Factoids(this))
     }
 
+    /* Display an error */
     def error(msg: String) =
         println("[!] "+msg);
 
-    def auth(hostname: String, servername: String, realname: String, password: Option[String]) = {
-        moduleProtocol.scheduleRegistration(hostname, servername, realname, password)
-    }
-
-
+    /* Dispatch any incoming messages */
     def dispatchMessage(message: Message) {
         var continue = true
         for (val module <- modulesList) if (continue) {
@@ -49,6 +46,7 @@ class Control(host: String, port: Int, dbname: String, dbuser: String, dbpass: S
         }
     }
 
+    /* Listen to incomming messages */
     def listen = {
         var continue = true
         while(continue) {
@@ -60,6 +58,7 @@ class Control(host: String, port: Int, dbname: String, dbuser: String, dbpass: S
         }
     }
 
+    /* call shutdown on all modules */
     def shutdownModules = {
         modulesList foreach { _ shutdown }
     }
