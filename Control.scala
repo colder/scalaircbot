@@ -4,9 +4,10 @@ import sql.MysqlConnection
 
 // Main controlling class
 class Control(val cfg: Config) {
+    val l = new TerminalLogger();
 
     /* Wrapping around the socket to implement the IRC protocol */
-    val p = new Protocol(new Connection(cfg.hostHost, cfg.hostPort))
+    val p = new Protocol(new Connection(cfg.hostHost, cfg.hostPort, l))
 
     /* Database connection */
     val db = new MysqlConnection(cfg.dbDatabase, cfg.dbUser, cfg.dbPass)
@@ -35,8 +36,7 @@ class Control(val cfg: Config) {
     }
 
     /* Display an error */
-    def error(msg: String) =
-        println("[!] "+msg);
+    def error(msg: String) = l.err(msg)
 
     /* Dispatch any incoming messages */
     def dispatchMessage(message: Message) {
