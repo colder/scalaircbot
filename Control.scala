@@ -31,6 +31,7 @@ class Control(val cfg: Config) {
         registerModule(new Channel(this))
         registerModule(new Manager(this))
         registerModule(new MonitorHashPHP(this))
+        registerModule(new RussianRoulette(this))
         registerModule(new Factoids(this))
 
     }

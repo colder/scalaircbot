@@ -4,8 +4,9 @@ import scala.collection.mutable.HashMap
 
 import helpers.Auth
 import helpers.Commands
+import helpers.Chanserv
 
-class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
+class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands with Chanserv {
     val channel = "##php"
     val timespan = 4
     val threshold = 5
@@ -35,7 +36,7 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
                 words(msg, 2) match {
                     case "!unban" :: mask :: Nil =>
                         if (isGranted(ctl, from, Manager, Administrator)) {
-                            op
+                            op(ctl, channel)
 
                             var n = 0;
                             for (mute <- muteList) {
@@ -48,7 +49,7 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
 
                             if (n == 0) ctl.p.msg(from.nick, "Mask '"+mask+"' not found.")
 
-                            deop
+                            deop(ctl, channel)
                         } else {
                             ctl.p.msg(from.nick, "Permission denied.")
                         }
@@ -90,21 +91,9 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
 
     val muteList = new HashMap[Prefix, (Long, Long)]();
 
-    var isOp = false
-
-    def op = if (!isOp) {
-        ctl.p.msg("chanserv", "OP "+channel)
-        Thread.sleep(1000)
-        isOp = true
-    }
-
-    def deop = if (isOp) {
-        ctl.p.deop(channel, ctl.nick)
-        isOp = false
-    }
 
     def mute(prefix: Prefix, duration: Long) = {
-        op
+        op(ctl, channel)
 
         if (!(muteList contains prefix)) {
             ctl.p.msg(prefix.nick, "You've been muted for 5 minutes to prevent you from flooding the channel.")
@@ -113,7 +102,7 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
 
         muteList += prefix -> (System.currentTimeMillis/1000, duration)
 
-        deop
+        deop(ctl, channel)
 
     }
 
@@ -121,13 +110,13 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
         val toRemove = muteList filter { x => (System.currentTimeMillis/1000)-x._2._2 > x._2._1 } toList;
 
         if (toRemove.length > 0) {
-            op
+            op(ctl, channel)
 
             for (mute <- toRemove ) {
                 unmute(mute._1)
             }
 
-            deop
+            deop(ctl, channel)
         }
     }
 
