@@ -107,6 +107,7 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
         op
 
         if (!(muteList contains prefix)) {
+            ctl.p.msg(prefix.nick, "You've been muted for 5 minutes to prevent you from flooding the channel.")
             ctl.p.mute(channel, prefix.nickMask)
         }
 
