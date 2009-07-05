@@ -173,7 +173,7 @@ class Protocol(conn: Connection) {
         mode(channel, "-q", mask)
 
     def kick(channel: String, nick: String, reason: String) =
-        conn.writeLine("KICK "+channel+" "+nick+": "+reason)
+        conn.writeLine("KICK "+channel+" "+nick+" :"+reason)
 
     def msg(to: String, msg: String) = {
         val msgl = if (msg.length > 450) msg.substring(0, 445)+"..." else msg
