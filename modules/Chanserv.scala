@@ -21,13 +21,13 @@ class Chanserv(ctl: Control) extends Module(ctl) with Auth {
 
     }
 
-    def scheduleOPAction(action: => Unit) = opActions = (() => action) :: opActions
+    def afterOP(action: => Unit) = opActions = (() => action) :: opActions
 
     def executeActions = {
         for (a <- opActions.reverse) a()
         opActions = Nil
     }
 
-    def requestOP(ctl: Control, channel: String) =
+    def op(ctl: Control, channel: String) =
         if (!isOP && opActions.size != 0) ctl.p.msg("chanserv", "OP "+channel)
 }

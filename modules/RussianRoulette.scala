@@ -2,12 +2,11 @@ package ircbot.modules
 
 import helpers.Auth
 import helpers.Commands
-import helpers.Chanserv
 
 import scala.util.Random
 import scala.collection.mutable.HashMap
 
-class RussianRoulette(ctl: Control) extends Module(ctl) with Auth with Commands with Chanserv {
+class RussianRoulette(ctl: Control) extends Module(ctl) with Auth with Commands {
     val gun = new Random;
     val barils = new HashMap[String, Int]();
 
@@ -21,10 +20,12 @@ class RussianRoulette(ctl: Control) extends Module(ctl) with Auth with Commands 
                             ctl.p.msg(to, nick+" has been volunteered to play russian roulette! Roll...");
                             Thread.sleep(5000);
                             if (gun.nextInt(getBaril(nick)) == 0) {
-                                op(ctl, to)
-                                ctl.p.kick(to, nick, "Bang!")
-                                resetBaril(nick);
-                                deop(ctl, to)
+                                ctl.chanserv.afterOP {
+                                    println("Executing the action!");
+                                    ctl.p.kick(to, nick, "Bang!")
+                                    resetBaril(nick);
+                                }
+                                ctl.chanserv.op(ctl, to)
                             } else {
                                 useBaril(nick);
                                 ctl.p.msg(to, "Click!")
@@ -41,6 +42,7 @@ class RussianRoulette(ctl: Control) extends Module(ctl) with Auth with Commands 
             }
         case _ => true
     }
+
 
     def getBaril(nick: String): Int = barils.get(nick) match {
         case Some(count) => count

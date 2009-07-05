@@ -32,6 +32,7 @@ abstract class Message;
     case class Error(code: Int, tokens: List[String]) extends Message
     case class Numeric(code: Int, tokens: List[String]) extends Message
     case class Msg(from: Prefix, to: String, msg: String) extends Message
+    case class Mode(from: Prefix, channel: String, modes: String, user: String) extends Message
     case class Invite(from: Prefix, channel: String) extends Message
     case class Ping(msg: String) extends Message
     case object Notice extends Message
@@ -107,6 +108,14 @@ class Protocol(conn: Connection) {
                     case None =>
                         Unknown(params)
                 }
+            case "MODE" :: channel :: modes :: nick :: Nil =>
+                prefix match {
+                    case Some(pr) =>
+                        Mode(pr, channel, modes, nick)
+                    case None =>
+                        Unknown(params)
+                }
+
             case x :: xs =>
                 try {
                     val num = Integer.parseInt(x)

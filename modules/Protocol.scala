@@ -1,6 +1,8 @@
 package ircbot.modules
 
-class Protocol(ctl: Control) extends Module(ctl) {
+import helpers.Auth
+
+class Protocol(ctl: Control) extends Module(ctl) with Auth {
     var registered = false
     def handleMessage(msg: Message) = msg match {
         case Notice if !registered =>
@@ -11,6 +13,9 @@ class Protocol(ctl: Control) extends Module(ctl) {
             ctl.p.nick(ctl.nick)
             registered = true
             true
+        case Invite(from, chan) =>
+            if (isGranted(ctl, from, Manager)) ctl.p.join(chan)
+            false
         case Ping(msg) =>
             ctl.p.pong(msg)
             false

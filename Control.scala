@@ -12,6 +12,9 @@ class Control(val cfg: Config) {
     /* Database connection */
     val db = new MysqlConnection(cfg.dbDatabase, cfg.dbUser, cfg.dbPass)
 
+    /* Special chanserv module used to perform delayed OP Actions */
+    val chanserv = new modules.Chanserv(this)
+
     /* nickname of the bot */
     val nick = cfg.authNick
 
@@ -28,7 +31,7 @@ class Control(val cfg: Config) {
     def registerDefaultModules {
         import modules._
         registerModule(new Protocol(this))
-        registerModule(new Channel(this))
+        registerModule(chanserv)
         registerModule(new Manager(this))
         registerModule(new MonitorHashPHP(this))
         registerModule(new RussianRoulette(this))
