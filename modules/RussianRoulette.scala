@@ -44,11 +44,11 @@ class RussianRoulette(ctl: Control) extends Module(ctl) with Auth with Commands 
 
     def getBaril(nick: String): Int = barils.get(nick) match {
         case Some(count) => count
-        case None => 6
+        case None => 3
     }
 
     def useBaril(nick: String) = barils += nick -> (getBaril(nick)-1);
 
-    def resetBaril(nick: String) = barils += nick -> 6;
+    def resetBaril(nick: String) = barils += nick -> 3;
 
 }
