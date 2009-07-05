@@ -31,7 +31,10 @@ class Factoids(ctl: Control) extends Module(ctl) with Auth with Commands {
                     msg.split("[:,] ?!\\+", 2).toList match {
                         case nick :: fact :: Nil =>
                             if (isGranted(ctl, from, Normal, Manager, Administrator)) {
-                                sendFact(to, fact, false)
+                                lookup(fact) match {
+                                    case Some(x) => ctl.p.msg(to, nick+", "+x);
+                                    case None =>
+                                }
                             } else {
                                 ctl.p.msg(from.nick, "This public command can only be used by regulars. You can simply msg me: /msg php-bot "+fact)
                             }
