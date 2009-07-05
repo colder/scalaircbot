@@ -12,7 +12,7 @@ abstract class UserLevel {
 
 object UserLevel {
     def fromString(str: String) = str.toLowerCase match {
-        case "normal" => Guest
+        case "normal" => Normal
         case "administrator" => Administrator
         case "manager" => Manager
         case _ => Guest
