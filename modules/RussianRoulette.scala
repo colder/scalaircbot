@@ -20,12 +20,10 @@ class RussianRoulette(ctl: Control) extends Module(ctl) with Auth with Commands 
                             ctl.p.msg(to, nick+" has been volunteered to play russian roulette! Roll...");
                             Thread.sleep(5000);
                             if (gun.nextInt(getBaril(nick)) == 0) {
-                                ctl.chanserv.afterOP {
-                                    println("Executing the action!");
+                                ctl.chanserv.doAsOP(to) {
                                     ctl.p.kick(to, nick, "Bang!")
                                     resetBaril(nick);
                                 }
-                                ctl.chanserv.op(ctl, to)
                             } else {
                                 useBaril(nick);
                                 ctl.p.msg(to, "Click!")

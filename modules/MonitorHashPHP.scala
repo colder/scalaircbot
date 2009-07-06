@@ -35,7 +35,7 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
                 words(msg, 2) match {
                     case "!unban" :: mask :: Nil =>
                         if (isGranted(ctl, from, Manager, Administrator)) {
-                            ctl.chanserv.afterOP {
+                            ctl.chanserv.doAsOP(channel) {
                                 var n = 0;
                                 for (mute <- muteList) {
                                     if (mute._1 matches mask) {
@@ -47,7 +47,6 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
 
                                 if (n == 0) ctl.p.msg(from.nick, "Mask '"+mask+"' not found.")
                             }
-                            ctl.chanserv.op(ctl, channel);
                         } else {
                             ctl.p.msg(from.nick, "Permission denied.")
                         }
@@ -91,7 +90,7 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
 
 
     def mute(prefix: Prefix, duration: Long) = {
-        ctl.chanserv.afterOP {
+        ctl.chanserv.doAsOP(channel) {
             if (!(muteList contains prefix)) {
                 ctl.p.msg(prefix.nick, "You've been muted for 5 minutes to prevent you from flooding the channel.")
                 ctl.p.mute(channel, prefix.nickMask)
@@ -99,21 +98,17 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
 
             muteList += prefix -> (System.currentTimeMillis/1000, duration)
         }
-
-        ctl.chanserv.op(ctl, channel)
     }
 
     def checkMuteList = {
         val toRemove = muteList filter { x => (System.currentTimeMillis/1000)-x._2._2 > x._2._1 } toList;
 
         if (toRemove.length > 0) {
-            ctl.chanserv.afterOP {
+            ctl.chanserv.doAsOP(channel) {
                 for (mute <- toRemove ) {
                     unmute(mute._1)
                 }
             }
-
-            ctl.chanserv.op(ctl, channel)
         }
     }
 
