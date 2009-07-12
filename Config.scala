@@ -19,4 +19,5 @@ class Config(path: String) {
     val authPass = (auth \ "@pass").text
     val authRealName = (auth \ "@realname").text
 
+    val channels = { (data \ "perform" \ "channel") map { _.text} }
 }

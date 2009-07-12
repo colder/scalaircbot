@@ -19,6 +19,12 @@ class Protocol(ctl: Control) extends Module(ctl) with Auth {
         case Ping(msg) =>
             ctl.p.pong(msg)
             false
+        case Numeric(376, _) =>
+            // End of MOTD, let's join channels
+            for(chan <- ctl.cfg.channels)
+                ctl.p.join(chan)
+
+            true
         case _ => true
     }
 }
