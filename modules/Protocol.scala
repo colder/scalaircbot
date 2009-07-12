@@ -13,6 +13,9 @@ class Protocol(ctl: Control) extends Module(ctl) with Auth {
             ctl.p.nick(ctl.nick)
             registered = true
             true
+        case Msg(from, to, m) if from.nick == "freenode-connect" =>
+            // ignore VERSION messages from freenode-connect
+            false
         case Invite(from, chan) =>
             if (isGranted(ctl, from, Manager)) ctl.p.join(chan)
             false
