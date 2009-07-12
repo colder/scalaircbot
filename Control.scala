@@ -4,7 +4,7 @@ import sql.MysqlConnection
 
 // Main controlling class
 class Control(val cfg: Config) {
-    val l = new TerminalLogger();
+    val l = new TerminalColorLogger();
 
     /* Wrapping around the socket to implement the IRC protocol */
     val p = new Protocol(new Connection(cfg.hostHost, cfg.hostPort, l))
