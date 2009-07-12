@@ -18,7 +18,7 @@ class RussianRoulette(ctl: Control) extends Module(ctl) with Auth with Commands 
                     case "!RR" :: nick :: Nil =>
                         if (isGranted(ctl, from, Manager, Administrator)) {
                             ctl.p.msg(to, nick+" has been volunteered to play russian roulette! Roll...");
-                            Thread.sleep(5000);
+                            Thread.sleep(2000);
                             if (gun.nextInt(getBaril(nick)) == 0) {
                                 ctl.chanserv.doAsOP(to) {
                                     ctl.p.kick(to, nick, "Bang!")
@@ -29,7 +29,16 @@ class RussianRoulette(ctl: Control) extends Module(ctl) with Auth with Commands 
                                 ctl.p.msg(to, "Click!")
                             }
                         } else {
-                            ctl.p.msg(from.nick, "This public command can only be used by regulars.")
+
+                            if (getBaril(from.nick) != 3 && gun.nextInt(getBaril(from.nick)) == 0) {
+                                ctl.chanserv.doAsOP(to) {
+                                    ctl.p.kick(to, from.nick, "Told you not to play with guns!")
+                                    resetBaril(from.nick);
+                                }
+                            } else {
+                                useBaril(from.nick);
+                                ctl.p.msg(from.nick, "Don't play with guns, kid!")
+                            }
                         }
                         false
                     case _ =>
