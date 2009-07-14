@@ -9,6 +9,10 @@ class Connection(host: String, port: Int, logger: Logger) {
     var out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), "UTF-8"), true)
     var in = new BufferedReader(new InputStreamReader(socket.getInputStream()))
 
+    var messages: List[Long] = Nil
+    val timespan  = 5
+    val threshold = 4
+
     def readLine: Option[String] = {
         val line = in.readLine
         logger.in(line)
@@ -16,7 +20,20 @@ class Connection(host: String, port: Int, logger: Logger) {
     }
 
     def writeLine(line: String) = {
+        addMessage
+
+        if (isFlooding) {
+            logger.warn("Flood detected, delaying...");
+            Thread.sleep(2000)
+        }
+
         out.println(line)
         logger.out(line)
+
+        cleanMessages
     }
+
+    def addMessage = messages = System.currentTimeMillis :: messages
+    def cleanMessages = messages = messages filter { _ > System.currentTimeMillis-timespan*2*1000 }
+    def isFlooding = messages.filter{ _ > System.currentTimeMillis-timespan*1000 }.length >= threshold
 }
