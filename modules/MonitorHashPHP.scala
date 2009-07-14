@@ -9,6 +9,7 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
     val channel = "##php"
     val timespan = 4
     val threshold = 5
+    val duration = 5 // duration of mute in minutes
 
     val messages = new HashMap[String, List[Long]]()
 
@@ -24,7 +25,7 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
 
                 if (!isGranted(ctl, from, Normal, Manager, Administrator)) {
                     if (isFlooding(from.nick)) {
-                        mute(from, 300)
+                        mute(from)
                         messages -= from.nick
                     }
                 }
@@ -89,14 +90,15 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
     val muteList = new HashMap[Prefix, (Long, Long)]();
 
 
-    def mute(prefix: Prefix, duration: Long) = {
+    def mute(prefix: Prefix) = {
+	ctl.p.msg(channel, "Trying to mute user now.")
         ctl.chanserv.doAsOP(channel) {
             if (!(muteList contains prefix)) {
-                ctl.p.msg(prefix.nick, "You've been muted for 5 minutes to prevent you from flooding the channel.")
+                ctl.p.msg(channel, prefix.nick + " has been muted for "+duration+" minutes to prevent them from flooding the channel.")
                 ctl.p.mute(channel, prefix.nickMask)
             }
 
-            muteList += prefix -> (System.currentTimeMillis/1000, duration)
+            muteList += prefix -> (System.currentTimeMillis/1000, duration.asInstanceOf[Long] * 60)
         }
     }
 
