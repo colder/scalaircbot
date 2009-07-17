@@ -59,7 +59,7 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
         case _ => true
     }
 
-    def addMessage(nick: String) = messages += nick -> (messages get nick match {
+    def addMessage(nick: String) = messages(nick) = (messages get nick match {
         case Some(msgs) =>  System.currentTimeMillis :: msgs
         case None => System.currentTimeMillis :: Nil
     })

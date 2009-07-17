@@ -56,8 +56,8 @@ class RussianRoulette(ctl: Control) extends Module(ctl) with Auth with Commands 
         case None => 3
     }
 
-    def useBaril(nick: String) = barils += nick -> (getBaril(nick)-1);
+    def useBaril(nick: String) = barils(nick) = (getBaril(nick)-1);
 
-    def resetBaril(nick: String) = barils += nick -> 3;
+    def resetBaril(nick: String) = barils(nick) = 3;
 
 }

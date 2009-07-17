@@ -10,7 +10,7 @@ class Chanserv(ctl: Control) extends Module(ctl) with Auth {
     def handleMessage(msg: Message) = msg match {
         case Mode(prefix, channel, modes, user) if user == ctl.cfg.authNick =>
             if (modes contains "+o") {
-                opStatus += channel -> true
+                opStatus(channel) = true
                 executeActions(channel)
                 ctl.p.deop(channel, ctl.nick)
             } else if (modes contains "-o") {
@@ -28,7 +28,7 @@ class Chanserv(ctl: Control) extends Module(ctl) with Auth {
     }
 
     def afterOP(channel: String)(action: => Unit) =
-        opActions += channel -> ((() => action) :: channelActions(channel))
+        opActions(channel) = ((() => action) :: channelActions(channel))
 
     def executeActions(channel: String) = {
         for (a <- channelActions(channel).reverse) a()
