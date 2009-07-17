@@ -91,14 +91,13 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
 
 
     def mute(prefix: Prefix) = {
-	ctl.p.msg(channel, "Trying to mute user now.")
         ctl.chanserv.doAsOP(channel) {
             if (!(muteList contains prefix)) {
                 ctl.p.msg(channel, prefix.nick + " has been muted for "+duration+" minutes to prevent them from flooding the channel.")
                 ctl.p.mute(channel, prefix.nickMask)
             }
 
-            muteList += prefix -> (System.currentTimeMillis/1000, duration.asInstanceOf[Long] * 60)
+            muteList += prefix -> (System.currentTimeMillis/1000, duration * 60L)
         }
     }
 
