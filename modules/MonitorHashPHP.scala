@@ -77,7 +77,7 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
                     if (newMsgs.length == 0) {
                         messages -= nick
                     } else {
-                        messages += nick -> newMsgs
+                        messages(nick) = newMsgs
                     }
             }
 
@@ -97,7 +97,7 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
                 ctl.p.mute(channel, prefix.nickMask)
             }
 
-            muteList += prefix -> (System.currentTimeMillis/1000, duration * 60L)
+            muteList(prefix) = (System.currentTimeMillis/1000, duration * 60)
         }
     }
 
