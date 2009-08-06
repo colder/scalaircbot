@@ -35,6 +35,7 @@ class Control(val cfg: Config) {
         registerModule(new Manager(this))
         registerModule(new MonitorHashPHP(this))
         registerModule(new RussianRoulette(this))
+        registerModule(new Yahoo(this))
         registerModule(new Factoids(this))
 
     }
