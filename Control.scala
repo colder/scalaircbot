@@ -64,8 +64,8 @@ class Control(val cfg: Config) extends Actor {
     val checker = actor {
         import InnerProtocol._
 
-        val checkInterval = 10;
-        val detectionInterval = 20;
+        val checkInterval = 10*60;
+        val detectionInterval = 20*60;
 
         while(true) {
             Thread.sleep(checkInterval*1000);
