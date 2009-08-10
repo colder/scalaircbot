@@ -38,12 +38,9 @@ abstract class Message;
     case object Notice extends Message
     case object EOF extends Message
 
-class Protocol(conn: Connection) {
+class Protocol(ctl: Control) {
 
-    /* Stores whether registration happened yet */
-    var registered = false;
-
-    def readMessage = conn.readLine match {
+    def parseLine(line: Option[String]): Message = line match {
         case Some(l) => parseLine(l)
         case None => EOF
     }
@@ -134,34 +131,34 @@ class Protocol(conn: Connection) {
     def quit: Unit = quit("")
 
     def user(username: String, hostname: String, servername: String, realname: String) =
-        conn.writeLine("USER "+username+" "+hostname+" "+servername+" :"+realname)
+        ctl.writeLine("USER "+username+" "+hostname+" "+servername+" :"+realname)
 
     def pass(password: String) =
-        conn.writeLine("PASS "+password)
+        ctl.writeLine("PASS "+password)
 
     def nick(nickname: String) =
-        conn.writeLine("NICK "+nickname)
+        ctl.writeLine("NICK "+nickname)
 
     def quit(msg: String) =
-        conn.writeLine("QUIT :"+msg)
+        ctl.writeLine("QUIT :"+msg)
 
     def join(channel: String) =
-        conn.writeLine("JOIN "+channel);
+        ctl.writeLine("JOIN "+channel);
 
     def join(channel: String, key: String) =
-        conn.writeLine("JOIN "+channel+" "+key);
+        ctl.writeLine("JOIN "+channel+" "+key);
 
     def part(channel: String) =
-        conn.writeLine("PART "+channel)
+        ctl.writeLine("PART "+channel)
 
     def invite(nick: String, channel: String) =
-        conn.writeLine("INVITE "+nick+" "+channel)
+        ctl.writeLine("INVITE "+nick+" "+channel)
 
     def kick(channel: String, nick: String) =
-        conn.writeLine("KICK "+channel+" "+nick)
+        ctl.writeLine("KICK "+channel+" "+nick)
 
     def mode(channel: String, mode: String, nick: String) =
-        conn.writeLine("MODE "+channel+" "+mode+" "+nick)
+        ctl.writeLine("MODE "+channel+" "+mode+" "+nick)
 
     def op(channel: String, nick: String) =
         mode(channel, "+o", nick)
@@ -182,17 +179,17 @@ class Protocol(conn: Connection) {
         mode(channel, "-q", mask)
 
     def kick(channel: String, nick: String, reason: String) =
-        conn.writeLine("KICK "+channel+" "+nick+" :"+reason)
+        ctl.writeLine("KICK "+channel+" "+nick+" :"+reason)
 
     def msg(to: String, msg: String) = {
         val msgl = if (msg.length > 450) msg.substring(0, 445)+"..." else msg
-        conn.writeLine("PRIVMSG "+to+" :"+msgl);
+        ctl.writeLine("PRIVMSG "+to+" :"+msgl);
     }
 
     def notice(to: String, msg: String) =
-        conn.writeLine("NOTICE "+to+" :"+msg);
+        ctl.writeLine("NOTICE "+to+" :"+msg);
 
     def pong(ping: String) = 
-        conn.writeLine("PONG "+ping);
+        ctl.writeLine("PONG "+ping);
 
 }

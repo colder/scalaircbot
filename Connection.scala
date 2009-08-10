@@ -3,11 +3,14 @@ package ircbot
 import java.io._
 import java.net.{InetAddress,ServerSocket,Socket,SocketException}
 
-class Connection(host: String, port: Int, logger: Logger) {
+import scala.actors.Actor
+import scala.actors.Actor._
+
+class Connection(host: String, port: Int, logger: Logger) extends Actor {
     val ia = InetAddress.getByName(host)
     val socket = new Socket(ia, port)
-    var out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), "UTF-8"), true)
-    var in = new BufferedReader(new InputStreamReader(socket.getInputStream()))
+    val out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), "UTF-8"), true)
+    val in  = new BufferedReader(new InputStreamReader(socket.getInputStream()))
 
     var messages: List[Long] = Nil
     val timespan  = 5
@@ -26,8 +29,9 @@ class Connection(host: String, port: Int, logger: Logger) {
             logger.warn("Flood detected, delaying...");
             Thread.sleep(2000)
         }
-
-        out.println(line)
+        synchronized {
+            out.println(line)
+        }
         logger.out(line)
 
         cleanMessages
@@ -36,4 +40,23 @@ class Connection(host: String, port: Int, logger: Logger) {
     def addMessage = messages = System.currentTimeMillis :: messages
     def cleanMessages = messages = messages filter { _ > System.currentTimeMillis-timespan*2*1000 }
     def isFlooding = messages.filter{ _ > System.currentTimeMillis-timespan*1000 }.length >= threshold
+
+    def act() {
+        import InnerProtocol._
+
+        var continue = true;
+
+        while (continue) {
+            receive {
+                case ReadLine => sender ! ReadLineAnswer(readLine)
+                case WriteLine(line) => writeLine(line)
+                case ReinitConnection =>
+                    /* Shut the connection down */
+                    out.close
+                    in.close
+                    socket.close
+                    continue = false
+            }
+        }
+    }
 }
