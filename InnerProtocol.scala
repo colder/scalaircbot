@@ -1,5 +1,6 @@
 package ircbot
 
+/* Inner protocol between Control, Connection and the connection checker */
 object InnerProtocol {
     // Request a line from the server
     object ReadLine;
