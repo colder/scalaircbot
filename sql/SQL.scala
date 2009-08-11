@@ -27,12 +27,23 @@ abstract class SQLConnection {
             arg match {
                 case as: String =>
                     stmt.setString(index, as)
+                    index += 1
                 case ai: Int =>
                     stmt.setInt(index, ai)
+                    index += 1
+                case aai: List[_] =>
+                    for (a <- aai) {
+                        a match {
+                            case i: Int => 
+                                stmt.setInt(index, i)
+                            case s: String =>
+                                stmt.setString(index, s)
+                        }
+                        index += 1
+                    }
                 case _ =>
-                    throw new Exception("No connection")
+                    throw new Exception("Invalid type of argument passed")
             }
-            index += 1
         }
 
         new SQLStatement(stmt)

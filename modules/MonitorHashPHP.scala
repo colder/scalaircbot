@@ -7,11 +7,14 @@ import helpers.Commands
 
 class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
     val channel = "##php"
-    val timespan = 4
-    val threshold = 5
-    val duration = 5 // duration of mute in minutes
+    val floodTimespan = 4
+    val floodThreshold = 5
+    val profanityTimespan = 20
+    val profanityThreshold = 4
+    val profanityWarningThreshold = 2
 
     val messages = new HashMap[String, List[Long]]()
+    val profanity = new HashMap[String, List[(String, Long)]]()
 
     var lastCleanup = 0
 
@@ -20,17 +23,31 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
             checkMuteList
 
             if (to equals channel) {
-                // checks that no nick sends more than n msg per m sec
-                addMessage(from.nick)
+                if (true || !isGranted(ctl, from, Normal, Manager, Administrator)) {
+                    // checks that no nick sends more than <floodThreshold> msg per <floodTimespan> sec
+                    addMessage(from.nick)
 
-                if (!isGranted(ctl, from, Normal, Manager, Administrator)) {
+                    if (isProfanity(msg)) {
+                        addProfanity(from.nick, msg)
+                    }
+
                     if (isFlooding(from.nick)) {
-                        mute(from)
+                        mute(from, 5, "to prevent them from flooding the channel more")
                         messages -= from.nick
                     }
+
+                    // Check for profanity
+                    if (isUsingProfanity(from.nick)) {
+                        ctl.p.msg(from.nick, "Please keep the profanity out of "+channel+", thanks.")
+                    }
+
+                    if (isAbusingProfanity(from.nick)) {
+                        mute(from, 5, "to prevent profanity abuse")
+                    }
+
+                    cleanup
                 }
 
-                cleanupMessages
                 true
             } else {
                 words(msg, 2) match {
@@ -52,7 +69,42 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
                             ctl.p.msg(from.nick, "Permission denied.")
                         }
                         false
-                    case _ => true
+                    case _ => words(msg, 3) match {
+
+                        case "!profanity" :: "add" :: word :: Nil =>
+                            if (isGranted(ctl, from, Manager, Administrator)) {
+                                val updated = ctl.db.prepareStatement("INSERT INTO irc_profanity SET word = ?", word).executeUpdate
+                                ctl.p.msg(from.nick, "Word '"+word+"' registered as profanity.")
+                            } else {
+                                ctl.p.msg(from.nick, "Permission denied.")
+                            }
+                            false
+
+                        case "!profanity" :: "remove" :: word :: Nil =>
+                            if (isGranted(ctl, from, Manager, Administrator)) {
+                                val upadted = ctl.db.prepareStatement("DELETE FROM irc_profanity WHERE word = ?", word).executeUpdate
+                                if (upadted > 0) {
+                                    ctl.p.msg(from.nick, "Word '"+word+"' removed as profanity.")
+                                } else {
+                                    ctl.p.msg(from.nick, "Word '"+word+"' not found.")
+                                }
+                            } else {
+                                ctl.p.msg(from.nick, "Permission denied.")
+                            }
+                            false
+
+                        case "!profanity" :: "list" :: Nil =>
+                            if (isGranted(ctl, from, Manager, Administrator)) {
+                                val results = ctl.db.prepareStatement("SELECT DISTINCT word FROM irc_profanity").executeQuery
+                                var l: List[String] = Nil;
+                                for (r <- results) l = l ::: r.getString("word") :: Nil
+                                ctl.p.msg(from.nick, "List: "+l.mkString(", "))
+                            } else {
+                                ctl.p.msg(from.nick, "Permission denied.")
+                            }
+                            false
+                        case _ => true
+                    }
                 }
 
             }
@@ -64,20 +116,61 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
         case None => System.currentTimeMillis :: Nil
     })
 
+    def addProfanity(nick: String, msg: String) = profanity(nick) = (profanity get nick match {
+        case Some(msgs) =>  (msg, System.currentTimeMillis) :: msgs
+        case None => (msg, System.currentTimeMillis) :: Nil
+    })
+
     def isFlooding(nick: String) = messages get nick match {
-        case Some(msgs) => msgs.filter{ _ > System.currentTimeMillis-timespan*1000 }.length >= threshold
+        case Some(msgs) => msgs.filter{ _ > System.currentTimeMillis-floodTimespan*1000 }.length >= floodThreshold
         case None => false
     }
 
-    def cleanupMessages = {
+    def isUsingProfanity(nick: String, threshold: Int) = profanity get nick match {
+        case Some(msgs) => msgs.filter{ _._2 > System.currentTimeMillis-profanityTimespan*1000 }.length == threshold
+        case None => false
+    }
+
+    def isUsingProfanity(nick: String): Boolean = isUsingProfanity(nick, profanityWarningThreshold);
+    def isAbusingProfanity(nick: String): Boolean = isUsingProfanity(nick, profanityThreshold)
+
+    def isProfanity(msg: String) = {
+        try {
+            val ws = words(msg.replaceAll("[^a-zA-Z0-9 ]+", ""))
+            val stmt = ctl.db.prepareStatement("SELECT word FROM irc_profanity WHERE word IN ("+(ws.map(x =>"?").mkString(", "))+") LIMIT 1", ws)
+            val results = stmt.executeQuery
+
+            val rowcount = ctl.db.prepareStatement("SELECT FOUND_ROWS() as number").executeQuery.firstRow.getInt("number")
+
+            stmt.close
+
+            rowcount > 0
+        } catch {
+            case ex: Exception =>
+                ctl.db.handleException(ex)
+                false
+        }
+    }
+
+    def cleanup = {
         if (lastCleanup > 100) {
             for ( entry <- messages) entry match {
                 case (nick, msgs) =>
-                    val newMsgs = msgs filter { _ < System.currentTimeMillis-timespan*1000 }
+                    val newMsgs = msgs filter { _ < System.currentTimeMillis-floodTimespan*1000 }
                     if (newMsgs.length == 0) {
                         messages -= nick
                     } else {
                         messages(nick) = newMsgs
+                    }
+            }
+
+            for ( entry <- profanity) entry match {
+                case (nick, msgs) =>
+                    val newMsgs = msgs filter { _._2 < System.currentTimeMillis-profanityTimespan*1000 }
+                    if (newMsgs.length == 0) {
+                        profanity -= nick
+                    } else {
+                        profanity(nick) = newMsgs
                     }
             }
 
@@ -90,10 +183,10 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
     val muteList = new HashMap[Prefix, (Long, Long)]();
 
 
-    def mute(prefix: Prefix) = {
+    def mute(prefix: Prefix, duration: Int, reason: String) = {
         ctl.chanserv.doAsOP(channel) {
             if (!(muteList contains prefix)) {
-                ctl.p.msg(channel, prefix.nick + " has been muted for "+duration+" minutes to prevent them from flooding the channel more.")
+                ctl.p.msg(channel, prefix.nick + " has been muted for "+duration+" minutes "+reason+".")
                 ctl.p.mute(channel, prefix.nickMask)
             }
 
