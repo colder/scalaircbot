@@ -105,9 +105,15 @@ class Manager(ctl: Control) extends Module(ctl) with Auth {
 
             for (result <- stmt.executeQuery) {
                 users = "'"+result.getString("mask")+"' ("+result.getString("level")+")" :: users
+                if (users.size == 3) {
+                    ctl.p.msg(from.nick, users.mkString("Masks: ", ",", ""))
+                    users = Nil
+                }
             }
 
-            ctl.p.msg(from.nick, users.mkString("Masks: ", ",", ""))
+            if (users.size != 0) {
+                ctl.p.msg(from.nick, users.mkString("Masks: ", ",", ""))
+            }
 
             stmt.close
         } catch {
