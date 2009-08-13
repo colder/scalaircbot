@@ -23,30 +23,31 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
             checkMuteList
 
             if (to equals channel) {
-                if (true || !isGranted(ctl, from, Normal, Manager, Administrator)) {
+                // Check for profanity
+                if (isProfanity(msg)) {
+                    addProfanity(from.nick, msg)
+                }
+
+                if (isUsingProfanity(from.nick)) {
+                    ctl.p.msg(from.nick, "Please keep the profanity out of "+channel+", thanks.")
+                }
+
+                if (isAbusingProfanity(from.nick)) {
+                    mute(from, 5, "to prevent profanity abuse")
+                }
+
+                if (!isGranted(ctl, from, Normal, Manager, Administrator)) {
                     // checks that no nick sends more than <floodThreshold> msg per <floodTimespan> sec
                     addMessage(from.nick)
-
-                    if (isProfanity(msg)) {
-                        addProfanity(from.nick, msg)
-                    }
 
                     if (isFlooding(from.nick)) {
                         mute(from, 5, "to prevent them from flooding the channel more")
                         messages -= from.nick
                     }
 
-                    // Check for profanity
-                    if (isUsingProfanity(from.nick)) {
-                        ctl.p.msg(from.nick, "Please keep the profanity out of "+channel+", thanks.")
-                    }
-
-                    if (isAbusingProfanity(from.nick)) {
-                        mute(from, 5, "to prevent profanity abuse")
-                    }
-
-                    cleanup
                 }
+
+                cleanup
 
                 true
             } else {
@@ -166,7 +167,7 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
 
             for ( entry <- profanity) entry match {
                 case (nick, msgs) =>
-                    val newMsgs = msgs filter { _._2 < System.currentTimeMillis-profanityTimespan*1000 }
+                    val newMsgs = msgs filter{ _._2 < System.currentTimeMillis-profanityTimespan*1000 };
                     if (newMsgs.length == 0) {
                         profanity -= nick
                     } else {
