@@ -11,7 +11,6 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
     val floodThreshold = 5
     val profanityTimespan = 2880
     val profanityThreshold = 3
-    val profanityWarningThreshold = 1
 
     val messages = new HashMap[String, List[Long]]()
     val profanity = new HashMap[String, List[(String, Long)]]()
@@ -26,13 +25,13 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
                 // Check for profanity
                 if (isProfanity(msg)) {
                     addProfanity(from.nick, msg)
+                    if (isAbusingProfanity(from.nick)) {
+                        mute(from, 30, "to prevent profanity abuse")
+                    } else {
+                        ctl.p.msg(from.nick, "Please keep the profanity out of "+channel+", thanks.")
+                    }
                 }
 
-                if (isAbusingProfanity(from.nick)) {
-                    mute(from, 30, "to prevent profanity abuse")
-                } else if (isUsingProfanity(from.nick)) {
-                    ctl.p.msg(from.nick, "Please keep the profanity out of "+channel+", thanks.")
-                }
 
                 if (!isGranted(ctl, from, Normal, Manager, Administrator)) {
                     // checks that no nick sends more than <floodThreshold> msg per <floodTimespan> sec
@@ -130,7 +129,6 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
         case None => false
     }
 
-    def isUsingProfanity(nick: String): Boolean = isUsingProfanity(nick, profanityWarningThreshold);
     def isAbusingProfanity(nick: String): Boolean = isUsingProfanity(nick, profanityThreshold)
 
     def isProfanity(msg: String) = {
