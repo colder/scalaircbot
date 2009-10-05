@@ -10,8 +10,8 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
     val floodTimespan = 4
     val floodThreshold = 5
     val profanityTimespan = 2880
-    val profanityThreshold = 2
-    val profanityWarningThreshold = 0
+    val profanityThreshold = 3
+    val profanityWarningThreshold = 1
 
     val messages = new HashMap[String, List[Long]]()
     val profanity = new HashMap[String, List[(String, Long)]]()
