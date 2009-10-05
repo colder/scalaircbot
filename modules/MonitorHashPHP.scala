@@ -54,7 +54,7 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
                             ctl.chanserv.doAsOP(channel) {
                                 var n = 0;
                                 for (mute <- muteList) {
-                                    if (mute._1 matches mask) {
+                                    if ((mute._1 matches mask) || (mute._1 == mask)) {
                                         unmute(mute._1)
                                         ctl.p.msg(from.nick, mute._1.fullMask+" unbanned.")
                                         n += 1
