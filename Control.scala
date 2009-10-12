@@ -71,12 +71,12 @@ class Control(val cfg: Config) extends Actor {
             Thread.sleep(checkInterval*1000);
 
             val curTime = System.currentTimeMillis/1000
-            if (curTime - detectionInterval/2 > lastMessage) {
-                l.warn("Trying to establish contact...");
-                c.writeLine("PING :"+curTime)
-            } else if (curTime - detectionInterval > lastMessage) {
+            if (curTime - detectionInterval > lastMessage) {
                 l.warn("Looks like we lost contact!");
                 this ! ReinitConnection
+            } else if (curTime - detectionInterval/2 > lastMessage) {
+                l.warn("Trying to establish contact...");
+                c.writeLine("PING :"+curTime)
             }
         }
     }
