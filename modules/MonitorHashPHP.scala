@@ -51,17 +51,21 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
                 words(msg, 2) match {
                     case "!unban" :: mask :: Nil =>
                         if (isGranted(ctl, from, Manager, Administrator)) {
-                            ctl.chanserv.doAsOP(channel) {
-                                var n = 0;
-                                for (mute <- muteList) {
-                                    if ((mute._1 matches mask) || (mute._1 == mask)) {
-                                        unmute(mute._1)
-                                        ctl.p.msg(from.nick, mute._1.fullMask+" unbanned.")
-                                        n += 1
+                            var toUnMute: List[Prefix] = Nil
+                            for (mute <- muteList) {
+                                if ((mute._1 matches mask) || (mute._1 == mask)) {
+                                    toUnMute  = mute._1 :: toUnMute;
+                                }
+                            }
+                            if (toUnMute != Nil) {
+                                ctl.chanserv.doAsOP(channel) {
+                                    for (p <- toUnMute) {
+                                        unmute(p)
+                                        ctl.p.msg(from.nick, p.fullMask+" unbanned.")
                                     }
                                 }
-
-                                if (n == 0) ctl.p.msg(from.nick, "Mask '"+mask+"' not found.")
+                            } else {
+                                ctl.p.msg(from.nick, "Mask '"+mask+"' not found.")
                             }
                         } else {
                             ctl.p.msg(from.nick, "Permission denied.")
