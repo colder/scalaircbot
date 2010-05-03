@@ -1,5 +1,6 @@
 package ircbot.modules
 
+import ircbot._
 import helpers.Http
 import helpers.Auth
 
@@ -31,7 +32,7 @@ class Yahoo(ctl: Control) extends Module(ctl) with Http with Auth {
 
     def search(pattern: String): SearchResults = {
         try {
-            val pattern_enc = java.net.URLEncoder.encode(pattern);
+            val pattern_enc = java.net.URLEncoder.encode(pattern, "UTF-8");
             val res = httpRequest("http://boss.yahooapis.com/ysearch/web/v1/"+pattern_enc+"?appid=WD0C1ofIkY21IlNLjmFl6lC.l7cdajU-&format=xml&filter=-porn-hate&count=5&style=raw")
             val xml = scala.xml.XML.load(res)
 

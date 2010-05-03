@@ -1,5 +1,6 @@
 package ircbot.modules
 
+import ircbot._
 import helpers.Auth
 
 class Protocol(ctl: Control) extends Module(ctl) with Auth {

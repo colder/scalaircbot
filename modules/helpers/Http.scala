@@ -1,5 +1,7 @@
 package ircbot.modules.helpers
 
+import ircbot._
+
 trait Http {
     class HttpException  extends RuntimeException
 

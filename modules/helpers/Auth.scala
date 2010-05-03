@@ -1,5 +1,7 @@
 package ircbot.modules.helpers
 
+import ircbot._
+
 trait Auth {
 
     def isGranted(ctl: Control, prefix: Prefix, levels: UserLevel*): Boolean = {

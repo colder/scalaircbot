@@ -55,7 +55,7 @@ class Control(val cfg: Config) extends Actor {
     /* Dispatch any incoming messages */
     def dispatchMessage(message: Message) {
         var continue = true
-        for (val module <- modulesList) if (continue) {
+        for (module <- modulesList) if (continue) {
             continue = module handleMessage message
         }
     }

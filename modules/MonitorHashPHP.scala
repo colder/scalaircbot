@@ -2,6 +2,7 @@ package ircbot.modules
 
 import scala.collection.mutable.HashMap
 
+import ircbot._
 import helpers.Auth
 import helpers.Commands
 
