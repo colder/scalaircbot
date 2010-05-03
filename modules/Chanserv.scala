@@ -18,7 +18,7 @@ class Chanserv(ctl: Control) extends Module(ctl) with Auth {
 
                     executeActions(channel)
 
-                    afterSeconds(channel, 15) {
+                    afterSeconds(channel, 6*60) {
                         if(isOP(channel)) {
                             ctl.p.deop(channel, ctl.nick)
                         }
