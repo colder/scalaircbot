@@ -69,8 +69,8 @@ class Chanserv(ctl: Control) extends Module(ctl) with Auth {
     }
 
     def doAsOP(channel: String)(action: => Unit) = {
-        op(channel)
         afterOP(channel)(action)
+        op(channel)
     }
 
 }
