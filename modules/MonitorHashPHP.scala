@@ -20,8 +20,6 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
 
     def handleMessage(msg: Message) = msg match {
         case Msg(from, to, msg) =>
-            checkMuteList
-
             if (to equals channel) {
                 // Check for profanity
                 if (isProfanity(msg)) {
@@ -49,67 +47,41 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
 
                 true
             } else {
-                words(msg, 2) match {
-                    case "!unban" :: mask :: Nil =>
+                words(msg, 3) match {
+                    case "!profanity" :: "add" :: word :: Nil =>
                         if (isGranted(ctl, from, Manager, Administrator)) {
-                            var toUnMute: List[Prefix] = Nil
-                            for (mute <- muteList) {
-                                if ((mute._1 matches mask) || (mute._1 == mask)) {
-                                    toUnMute  = mute._1 :: toUnMute;
-                                }
-                            }
-                            if (toUnMute != Nil) {
-                                ctl.chanserv.doAsOP(channel) {
-                                    for (p <- toUnMute) {
-                                        unmute(p)
-                                        ctl.p.msg(from.nick, p.fullMask+" unbanned.")
-                                    }
-                                }
+                            val updated = ctl.db.prepareStatement("INSERT INTO irc_profanity SET word = ?", word).executeUpdate
+                            ctl.p.msg(from.nick, "Word '"+word+"' registered as profanity.")
+                        } else {
+                            ctl.p.msg(from.nick, "Permission denied.")
+                        }
+                        false
+
+                    case "!profanity" :: "remove" :: word :: Nil =>
+                        if (isGranted(ctl, from, Manager, Administrator)) {
+                            val upadted = ctl.db.prepareStatement("DELETE FROM irc_profanity WHERE word = ?", word).executeUpdate
+                            if (upadted > 0) {
+                                ctl.p.msg(from.nick, "Word '"+word+"' removed as profanity.")
                             } else {
-                                ctl.p.msg(from.nick, "Mask '"+mask+"' not found.")
+                                ctl.p.msg(from.nick, "Word '"+word+"' not found.")
                             }
                         } else {
                             ctl.p.msg(from.nick, "Permission denied.")
                         }
                         false
-                    case _ => words(msg, 3) match {
 
-                        case "!profanity" :: "add" :: word :: Nil =>
-                            if (isGranted(ctl, from, Manager, Administrator)) {
-                                val updated = ctl.db.prepareStatement("INSERT INTO irc_profanity SET word = ?", word).executeUpdate
-                                ctl.p.msg(from.nick, "Word '"+word+"' registered as profanity.")
-                            } else {
-                                ctl.p.msg(from.nick, "Permission denied.")
-                            }
-                            false
-
-                        case "!profanity" :: "remove" :: word :: Nil =>
-                            if (isGranted(ctl, from, Manager, Administrator)) {
-                                val upadted = ctl.db.prepareStatement("DELETE FROM irc_profanity WHERE word = ?", word).executeUpdate
-                                if (upadted > 0) {
-                                    ctl.p.msg(from.nick, "Word '"+word+"' removed as profanity.")
-                                } else {
-                                    ctl.p.msg(from.nick, "Word '"+word+"' not found.")
-                                }
-                            } else {
-                                ctl.p.msg(from.nick, "Permission denied.")
-                            }
-                            false
-
-                        case "!profanity" :: "list" :: Nil =>
-                            if (isGranted(ctl, from, Manager, Administrator)) {
-                                val results = ctl.db.prepareStatement("SELECT DISTINCT word FROM irc_profanity").executeQuery
-                                var l: List[String] = Nil;
-                                for (r <- results) l = l ::: r.getString("word") :: Nil
-                                ctl.p.msg(from.nick, "List: "+l.mkString(", "))
-                            } else {
-                                ctl.p.msg(from.nick, "Permission denied.")
-                            }
-                            false
-                        case _ => true
-                    }
+                    case "!profanity" :: "list" :: Nil =>
+                        if (isGranted(ctl, from, Manager, Administrator)) {
+                            val results = ctl.db.prepareStatement("SELECT DISTINCT word FROM irc_profanity").executeQuery
+                            var l: List[String] = Nil;
+                            for (r <- results) l = l ::: r.getString("word") :: Nil
+                            ctl.p.msg(from.nick, "List: "+l.mkString(", "))
+                        } else {
+                            ctl.p.msg(from.nick, "Permission denied.")
+                        }
+                        false
+                    case _ => true
                 }
-
             }
         case _ => true
     }
@@ -182,34 +154,9 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
         }
     }
 
-    val muteList = new HashMap[Prefix, (Long, Long)]();
 
-
-    def mute(prefix: Prefix, duration: Int, reason: String) = {
-        ctl.chanserv.doAsOP(channel) {
-            if (!(muteList contains prefix)) {
-                ctl.p.msg(channel, prefix.nick + " has been muted for "+duration+" minutes "+reason+".")
-                ctl.p.mute(channel, prefix.nickMask)
-            }
-
-            muteList(prefix) = (System.currentTimeMillis/1000, duration * 60)
-        }
-    }
-
-    def checkMuteList = {
-        val toRemove = muteList filter { x => (System.currentTimeMillis/1000)-x._2._2 > x._2._1 } toList;
-
-        if (toRemove.length > 0) {
-            ctl.chanserv.doAsOP(channel) {
-                for (mute <- toRemove ) {
-                    unmute(mute._1)
-                }
-            }
-        }
-    }
-
-    def unmute(prefix: Prefix) = {
-        ctl.p.unmute(channel, prefix.nickMask)
-        muteList -= prefix
+    def mute(prefix: Prefix, duration: Int, reason: String) = { 
+        ctl.chanserv.mute(channel, prefix, duration)
+        ctl.p.msg(channel, prefix.nick + " has been muted for "+duration+" minutes "+reason+".")
     }
 }

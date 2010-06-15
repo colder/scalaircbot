@@ -1,37 +1,65 @@
 package ircbot.modules
 
 import ircbot._
-import helpers.Auth
+import helpers.{Auth,Commands}
 
+abstract class Action {
+    def execute
+}
+case class GenericAction(body: () => Unit) extends Action {
+    def execute = body()
+}
 
-case class DelayedAction(time: Long, requireOP: Boolean = false, action: () => Unit);
-class Chanserv(ctl: Control) extends Module(ctl) with Auth {
-    var opStatus       = Map[String, Boolean]().withDefaultValue(false)
+case class BanAction(p: Prefix, body: () => Unit) extends Action {
+    def execute = body()
+}
+
+case class DelayedAction(time: Long, requireOP: Boolean, action: Action);
+
+class Chanserv(ctl: Control) extends Module(ctl) with Auth with Commands {
+    var isOP           = Map[String, Boolean]().withDefaultValue(false)
+    var isRequestingOP = Map[String, Boolean]().withDefaultValue(false)
     var delayedActions = Map[String, Set[DelayedAction]]().withDefaultValue(Set())
 
-
     def handleMessage(msg: Message) = {
+        var passThrough = true
         msg match {
             case Mode(prefix, channel, modes, user) if user == ctl.cfg.authNick =>
                 if (modes contains "+o") {
-                    opStatus += (channel -> true)
+                    isOP           += (channel -> true)
+                    isRequestingOP -= channel
                 } else if (modes contains "-o") {
-                    opStatus -= channel
+                    isOP           -= channel
+                }
+            case Msg(from, to, msg) =>
+                words(msg, 3) match {
+                    case "!unban" :: channel :: nick :: Nil =>
+                        if (isGranted(ctl, from, Manager, Administrator)) {
+                            if (unban(channel, nick)) {
+                                ctl.p.msg(from.nick, "Nick "+nick+" unbanned form channel "+channel+".")
+                            } else {
+                                ctl.p.msg(from.nick, "Nick "+nick+" not currently banned in channel "+channel+".")
+                            }
+                        } else {
+                            ctl.p.msg(from.nick, "Permission denied.")
+                        }
+                        passThrough = false
+                    case _ =>
                 }
             case _ =>
-
         }
 
-        checkActionsList
-        true
+        checkActionsList()
+
+        passThrough
     }
 
     def now = System.currentTimeMillis/1000;
 
     def afterSeconds(channel: String, seconds: Int, requireOP: Boolean = false)(action: => Unit) =
-        registerAction(channel, seconds, requireOP, () => action)
+        registerAction(channel, seconds, requireOP, GenericAction(() => action))
 
-    def checkActionsList = {
+    def checkActionsList() = {
         for((channel, acts) <- delayedActions) {
             val toPerform = acts filter { a => (now >= a.time) && (a.requireOP == false || isOP(channel))}
             delayedActions += channel -> (acts -- toPerform)
@@ -39,7 +67,7 @@ class Chanserv(ctl: Control) extends Module(ctl) with Auth {
             val inOrder = toPerform.toSeq.sortWith((a,b) => a.time < b.time)
 
             for (a <- inOrder) {
-                a.action();
+                a.action.execute;
             }
 
             if (isOP(channel)) {
@@ -50,17 +78,56 @@ class Chanserv(ctl: Control) extends Module(ctl) with Auth {
         }
     }
 
-    def registerAction(channel: String, seconds: Int, requireOP: Boolean, action: () => Unit) =
-        delayedActions += channel -> (delayedActions(channel) + DelayedAction(now + seconds, requireOP, () => action))
+    def registerAction(channel: String, seconds: Long, requireOP: Boolean, action: Action) =
+        delayedActions += channel -> (delayedActions(channel) + DelayedAction(now + seconds, requireOP, action))
+
+    def registerBan(channel: String, p: Prefix, seconds: Long, mute: Boolean): Boolean = {
+        // check that a ban is not already set
+        val ob = delayedActions(channel).find{ case da @ DelayedAction(_, _, BanAction(bp, _)) => bp == p }
+
+        if (ob.isEmpty) {
+            if (mute) {
+                registerAction(channel, 0,       true, BanAction(p, () => ctl.p.mute(channel, p.nickMask)))
+                registerAction(channel, seconds, true, BanAction(p, () => ctl.p.unmute(channel, p.nickMask)))
+            } else {
+                registerAction(channel, 0,       true, BanAction(p, () => ctl.p.ban(channel, p.nickMask)))
+                registerAction(channel, seconds, true, BanAction(p, () => ctl.p.unban(channel, p.nickMask)))
+            }
+            op(channel)
+            true
+        } else {
+            false
+        }
+    }
+
+    def mute(channel: String, p: Prefix, duration: Long) =
+        registerBan(channel, p, duration, true)
+
+    def ban(channel: String, p: Prefix, duration: Long) =
+        registerBan(channel, p, duration, false)
+
+    // "manual" unban
+    def unban(channel: String, nick: String) = {
+        val ob = delayedActions(channel).find{ case da @ DelayedAction(_, _, BanAction(p, _)) => p.nick == nick }
+        ob match {
+            case Some(unban) =>
+                // found the unban operation, promote it to now
+                delayedActions += channel -> (delayedActions(channel) - unban)
+                registerAction(channel, 0, true, unban.action)
+                op(channel)
+                true
+            case None =>
+                false
+        }
+    }
 
 
-    def afterOP(channel: String)(action: => Unit) =
-        afterSeconds(channel, 0, true)(() => action)
-
-    def isOP(channel: String) = opStatus(channel)
+    def afterOP(channel: String, after: Int = 0)(action: => Unit) =
+        afterSeconds(channel, after, true)(() => action)
 
     def op(channel: String) = {
-        if (!isOP(channel)) {
+        if (!isOP(channel) && !isRequestingOP(channel)) {
+            isRequestingOP += channel -> true
             ctl.p.msg("chanserv", "OP "+channel)
         }
     }
