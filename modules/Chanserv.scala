@@ -3,26 +3,18 @@ package ircbot.modules
 import ircbot._
 import helpers.Auth
 
-class Chanserv(ctl: Control) extends Module(ctl) with Auth {
-    var opStatus  = Map[String, Boolean]().withDefaultValue(false)
-    var opActions = Map[String, List[() => Unit]]().withDefaultValue(Nil)
-    var delayedActions   = Map[String, List[(Long, () => Unit)]]().withDefaultValue(Nil)
 
-    def now = System.currentTimeMillis/1000;
+case class DelayedAction(time: Long, requireOP: Boolean = false, action: () => Unit);
+class Chanserv(ctl: Control) extends Module(ctl) with Auth {
+    var opStatus       = Map[String, Boolean]().withDefaultValue(false)
+    var delayedActions = Map[String, Set[DelayedAction]]().withDefaultValue(Set())
+
 
     def handleMessage(msg: Message) = {
         msg match {
             case Mode(prefix, channel, modes, user) if user == ctl.cfg.authNick =>
                 if (modes contains "+o") {
                     opStatus += (channel -> true)
-
-                    executeActions(channel)
-
-                    afterSeconds(channel, 6*60) {
-                        if(isOP(channel)) {
-                            ctl.p.deop(channel, ctl.nick)
-                        }
-                    }
                 } else if (modes contains "-o") {
                     opStatus -= channel
                 }
@@ -34,38 +26,43 @@ class Chanserv(ctl: Control) extends Module(ctl) with Auth {
         true
     }
 
-    def afterSeconds(channel: String, seconds: Int)(action: => Unit) =
-        delayedActions += (channel -> ((now + seconds, () => action) :: delayedActions(channel)))
+    def now = System.currentTimeMillis/1000;
+
+    def afterSeconds(channel: String, seconds: Int, requireOP: Boolean = false)(action: => Unit) =
+        registerAction(channel, seconds, requireOP, () => action)
 
     def checkActionsList = {
         for((channel, acts) <- delayedActions) {
-            val toPerform = acts. filter{ x => now >= x._1 }.toList
-            delayedActions += (channel -> (acts filter { x => now < x._1 } toList))
+            val toPerform = acts filter { a => (now >= a.time) && (a.requireOP == false || isOP(channel))}
+            delayedActions += channel -> (acts -- toPerform)
 
-            for ((time, a) <- toPerform.reverse) {
-                a();
+            val inOrder = toPerform.toSeq.sortWith((a,b) => a.time < b.time)
+
+            for (a <- inOrder) {
+                a.action();
             }
 
+            if (isOP(channel)) {
+                if (!delayedActions(channel).exists(_.requireOP)) {
+                    ctl.p.deop(channel, ctl.nick);
+                }
+            }
         }
     }
+
+    def registerAction(channel: String, seconds: Int, requireOP: Boolean, action: () => Unit) =
+        delayedActions += channel -> (delayedActions(channel) + DelayedAction(now + seconds, requireOP, () => action))
 
 
     def afterOP(channel: String)(action: => Unit) =
-        if (isOP(channel)) {
-            action
-        } else {
-            opActions += (channel -> ((() => action) :: opActions(channel)))
-        }
-
-    def executeActions(channel: String) = {
-        for (a <- opActions(channel).reverse) a()
-        opActions = opActions - channel
-    }
+        afterSeconds(channel, 0, true)(() => action)
 
     def isOP(channel: String) = opStatus(channel)
 
-    def op(channel: String) = if (!isOP(channel) && opActions(channel).size != 0) {
-        ctl.p.msg("chanserv", "OP "+channel)
+    def op(channel: String) = {
+        if (!isOP(channel)) {
+            ctl.p.msg("chanserv", "OP "+channel)
+        }
     }
 
     def doAsOP(channel: String)(action: => Unit) = {
