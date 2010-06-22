@@ -25,7 +25,7 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
                 if (isProfanity(msg)) {
                     addProfanity(from.nick, msg)
                     if (isAbusingProfanity(from.nick)) {
-                        mute(from, 30, "to prevent profanity abuse")
+                        mute(from, Minutes(30), "to prevent profanity abuse")
                     } else {
                         ctl.p.msg(from.nick, "Please keep the profanity out of "+channel+", thanks.")
                     }
@@ -37,7 +37,7 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
                     addMessage(from.nick)
 
                     if (isFlooding(from.nick)) {
-                        mute(from, 5, "to prevent them from flooding the channel more")
+                        mute(from, Minutes(5), "to prevent them from flooding the channel more")
                         messages -= from.nick
                     }
 
@@ -155,8 +155,8 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
     }
 
 
-    def mute(prefix: Prefix, duration: Int, reason: String) = { 
+    def mute(prefix: Prefix, duration: Duration, reason: String) = { 
         ctl.chanserv.mute(channel, prefix, duration)
-        ctl.p.msg(channel, prefix.nick + " has been muted for "+duration+" minutes "+reason+".")
+        ctl.p.msg(channel, prefix.nick + " has been muted for "+duration+" "+reason+".")
     }
 }

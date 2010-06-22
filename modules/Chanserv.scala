@@ -54,12 +54,12 @@ class Chanserv(ctl: Control) extends Module(ctl) with Auth with Commands {
         passThrough
     }
 
-    def now = System.currentTimeMillis/1000;
+    private def now = System.currentTimeMillis/1000;
 
-    def afterSeconds(channel: String, seconds: Int, requireOP: Boolean = false)(action: => Unit) =
+    private def afterSeconds(channel: String, seconds: Int, requireOP: Boolean = false)(action: => Unit) =
         registerAction(channel, seconds, requireOP, GenericAction(() => action))
 
-    def checkActionsList() = {
+    private def checkActionsList() = {
         for((channel, acts) <- delayedActions) {
             val toPerform = acts filter { a => (now >= a.time) && (a.requireOP == false || isOP(channel))}
             delayedActions += channel -> (acts -- toPerform)
@@ -78,10 +78,10 @@ class Chanserv(ctl: Control) extends Module(ctl) with Auth with Commands {
         }
     }
 
-    def registerAction(channel: String, seconds: Long, requireOP: Boolean, action: Action) =
+    private def registerAction(channel: String, seconds: Int, requireOP: Boolean, action: Action) =
         delayedActions += channel -> (delayedActions(channel) + DelayedAction(now + seconds, requireOP, action))
 
-    def registerBan(channel: String, p: Prefix, seconds: Long, mute: Boolean): Boolean = {
+    private def registerBan(channel: String, p: Prefix, seconds: Int, mute: Boolean): Boolean = {
         // check that a ban is not already set
         val ob = delayedActions(channel).find{ case da @ DelayedAction(_, _, BanAction(bp, _)) => bp == p }
 
@@ -100,14 +100,14 @@ class Chanserv(ctl: Control) extends Module(ctl) with Auth with Commands {
         }
     }
 
-    def mute(channel: String, p: Prefix, duration: Long) =
-        registerBan(channel, p, duration, true)
+    def mute(channel: String, p: Prefix, duration: Duration) =
+        registerBan(channel, p, duration.toSeconds, true)
 
-    def ban(channel: String, p: Prefix, duration: Long) =
-        registerBan(channel, p, duration, false)
+    def ban(channel: String, p: Prefix, duration: Duration) =
+        registerBan(channel, p, duration.toSeconds, false)
 
     // "manual" unban
-    def unban(channel: String, nick: String) = {
+    private def unban(channel: String, nick: String) = {
         val ob = delayedActions(channel).find{ case da @ DelayedAction(_, _, BanAction(p, _)) => p.nick == nick }
         ob match {
             case Some(unban) =>
@@ -122,8 +122,8 @@ class Chanserv(ctl: Control) extends Module(ctl) with Auth with Commands {
     }
 
 
-    def afterOP(channel: String, after: Int = 0)(action: => Unit) =
-        afterSeconds(channel, after, true)(() => action)
+    def afterOP(channel: String, after: Duration = Now)(action: => Unit) =
+        afterSeconds(channel, after.toSeconds, true)(() => action)
 
     def op(channel: String) = {
         if (!isOP(channel) && !isRequestingOP(channel)) {
