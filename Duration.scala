@@ -9,7 +9,7 @@ abstract class Duration(seconds: Int) {
 case object Now extends Duration(0)
 case class Seconds(s: Int) extends Duration(s)
 case class Minutes(m: Int) extends Duration(60*m) {
-    override def toString = m+" seconds"
+    override def toString = m+" minutes"
 }
 case class Hours(h: Int) extends Duration(60*60*h) {
     override def toString = h+" hours"
