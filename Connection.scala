@@ -1,14 +1,15 @@
 package ircbot
 
 import java.io._
-import java.net.{InetAddress,ServerSocket,Socket,SocketException}
+import java.net.{InetAddress,ServerSocket,Socket,SocketException, InetSocketAddress}
 
 import scala.actors.Actor
 import scala.actors.Actor._
 
 class Connection(host: String, port: Int, logger: Logger) extends Actor {
     val ia = InetAddress.getByName(host)
-    val socket = new Socket(ia, port)
+    val socket = new Socket()
+    socket.connect(new InetSocketAddress(ia, port), 60*1000)
     val out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), "UTF-8"), true)
     val in  = new BufferedReader(new InputStreamReader(socket.getInputStream()))
 

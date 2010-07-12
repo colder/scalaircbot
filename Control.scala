@@ -64,7 +64,7 @@ class Control(val cfg: Config) extends Actor {
     val checker = actor {
         import InnerProtocol._
 
-        val checkInterval = 10*60;
+        val checkInterval = 1*60;
         val detectionInterval = 20*60;
 
         while(true) {
@@ -132,10 +132,15 @@ class Control(val cfg: Config) extends Actor {
                     registered  = false;
                     registering = false;
 
-                    c ! ReinitConnection
-                    c = new Connection(cfg.hostHost, cfg.hostPort, l)
-                    c.start
-                    reconnectModules
+                    try {
+                        c ! ReinitConnection
+                        c = new Connection(cfg.hostHost, cfg.hostPort, l)
+                        c.start
+                        reconnectModules
+                    } catch {
+                        case e: java.net.SocketTimeoutException =>
+                            l.warn("Connection timeout");
+                    }
             }
         }
 

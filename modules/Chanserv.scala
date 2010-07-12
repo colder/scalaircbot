@@ -137,4 +137,8 @@ class Chanserv(ctl: Control) extends Module(ctl) with Auth with Commands {
         op(channel)
     }
 
+    override def reconnect = {
+        isOP           = Map[String, Boolean]().withDefaultValue(false)
+        isRequestingOP = Map[String, Boolean]().withDefaultValue(false)
+    };
 }
