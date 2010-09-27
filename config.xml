@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ircbot>
  <host host="irc.freenode.org" port="6667" />
- <db user="db_username" pass="db_password" database="db_name" />
+ <db host="db_host" user="db_username" pass="db_password" database="db_name" />
  <auth nick="irc_nick" pass="chanserv_pass" realname="name" />
  <perform>
   <channel>#channel</channel>
