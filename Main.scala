@@ -7,8 +7,13 @@ object Main {
         if (args.length < 1) {
             usage
         } else {
-            val bot = new Control(new Config(args(0)))
-            bot start
+            var bot: Control = null
+            try {
+                bot = new Control(new Config(args(0)))
+                bot start
+            } catch {
+                case _ =>
+            }
         }
     }
 

@@ -9,6 +9,8 @@ object InnerProtocol {
     // Response from the server
     case class ReadLineAnswer(line: Option[String]);
     // Reconnect to the server
-    case class ReinitConnection();
+    case object ReinitConnection;
+    // Reconnect to the server
+    case object StopChecker;
 }
 

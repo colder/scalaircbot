@@ -8,6 +8,7 @@ abstract class Logger {
     def in(msg: String);
     def err(msg: String);
     def warn(msg: String);
+    def info(msg: String);
 }
 
 class TerminalLogger extends Logger {
@@ -18,6 +19,7 @@ class TerminalLogger extends Logger {
     def in(msg: String)   = println(date+" [<] "+msg)
     def err(msg: String)  = println(date+" [!] "+msg)
     def warn(msg: String) = println(date+" [w] "+msg)
+    def info(msg: String) = println(date+" [i] "+msg)
 }
 
 class TerminalColorLogger extends TerminalLogger {
@@ -25,4 +27,5 @@ class TerminalColorLogger extends TerminalLogger {
     override def in(msg: String)  = println(date+" \033[32m[<]\033[0m "+msg)
     override def err(msg: String) = println(date+" \033[31m[!]\033[0m "+msg)
     override def warn(msg: String) = println(date+" \033[33m[w]\033[0m "+msg)
+    override def info(msg: String) = println(date+" \033[32m[i]\033[0m "+msg)
 }

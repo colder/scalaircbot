@@ -7,15 +7,21 @@ import scala.actors.Actor
 import scala.actors.Actor._
 
 class Connection(host: String, port: Int, logger: Logger) extends Actor {
-    val ia = InetAddress.getByName(host)
     val socket = new Socket()
-    socket.connect(new InetSocketAddress(ia, port), 60*1000)
-    val out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), "UTF-8"), true)
-    val in  = new BufferedReader(new InputStreamReader(socket.getInputStream()))
+    var out: PrintWriter   = null
+    var in: BufferedReader = null
 
     var messages: List[Long] = Nil
     val timespan  = 5
     val threshold = 4
+
+    def init {
+        val ia = InetAddress.getByName(host);
+
+        socket.connect(new InetSocketAddress(ia, port), 15*1000)
+        out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), "UTF-8"), true)
+        in  = new BufferedReader(new InputStreamReader(socket.getInputStream()))
+    }
 
     def readLine: Option[String] = {
         val line = in.readLine
@@ -60,4 +66,6 @@ class Connection(host: String, port: Int, logger: Logger) extends Actor {
             }
         }
     }
+
+    init
 }

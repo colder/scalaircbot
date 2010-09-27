@@ -10,16 +10,16 @@ class Control(val cfg: Config) extends Actor {
     val l = new TerminalColorLogger();
 
     /* Connection actor used to send/receive messages */
-    var c = new Connection(cfg.hostHost, cfg.hostPort, l)
+    var c: Connection = null
 
     /* Wrapping around the socket to implement the IRC protocol */
-    val p = new Protocol(this)
+    var p: Protocol = null
 
     /* Database connection */
-    val db = new MysqlConnection(cfg.dbHost, cfg.dbPort, cfg.dbDatabase, cfg.dbUser, cfg.dbPass)
+    var db: MysqlConnection = null
 
     /* Special chanserv module used to perform delayed OP Actions */
-    val chanserv = new modules.Chanserv(this)
+    var chanserv: modules.Chanserv = null
 
     /* nickname of the bot */
     var nick = cfg.authNick
@@ -64,19 +64,26 @@ class Control(val cfg: Config) extends Actor {
     val checker = actor {
         import InnerProtocol._
 
-        val checkInterval = 1*60;
-        val detectionInterval = 20*60;
+        var continue = true
+        val detectionInterval = 2*60;
 
-        while(true) {
-            Thread.sleep(checkInterval*1000);
+        while(continue) {
+            // wait for kill message
+            Actor.receiveWithin(detectionInterval*1000/10) {
+                case StopChecker =>
+                    continue = false;
+            }
 
-            val curTime = System.currentTimeMillis/1000
-            if (curTime - detectionInterval > lastMessage) {
-                l.warn("Looks like we lost contact!");
-                Control.this ! ReinitConnection
-            } else if (curTime - detectionInterval/2 > lastMessage) {
-                l.warn("Trying to establish contact...");
-                c.writeLine("PING :"+curTime)
+            if (continue) {
+                val curTime = System.currentTimeMillis/1000
+                if (curTime - detectionInterval > lastMessage) {
+                    l.warn("Looks like we lost contact!")
+                    Control.this ! ReinitConnection
+                    l.warn("Reinit ordered!")
+                } else if (curTime - detectionInterval/2 > lastMessage) {
+                    l.warn("Trying to establish contact...")
+                    c.writeLine("PING :"+curTime)
+                }
             }
         }
     }
@@ -139,14 +146,17 @@ class Control(val cfg: Config) extends Actor {
                         reconnectModules
                     } catch {
                         case e: java.net.SocketTimeoutException =>
-                            l.warn("Connection timeout");
+                            l.warn("Connection timeout")
+                        case e: java.net.UnknownHostException =>
+                            l.warn("Unknown Host: " + e.getMessage)
+                        case e =>
+                            l.warn("Undefined Error: " + e.getMessage)
                     }
             }
         }
 
         /* Shutdown process... */
-        shutdownModules
-        db.close
+        shutdown
     }
 
     def register(release: Boolean) {
@@ -186,5 +196,39 @@ class Control(val cfg: Config) extends Actor {
         modulesList foreach { _ reconnect }
     }
 
-    registerDefaultModules
+    def init {
+        try {
+            l.info("Connecting to IRC server...")
+            c        = new Connection(cfg.hostHost, cfg.hostPort, l)
+            l.info("Loading Protocol...")
+            p        = new Protocol(this)
+            l.info("Connecting to Database...")
+            db       = new MysqlConnection(cfg.dbHost, cfg.dbPort, cfg.dbDatabase, cfg.dbUser, cfg.dbPass)
+            l.info("Loading ChanServ Module...")
+            chanserv = new modules.Chanserv(this)
+
+            registerDefaultModules
+        } catch {
+            case e =>
+                l.err("Unnexpected error: "+e);
+                shutdown
+                throw e
+        }
+    }
+
+    def shutdown {
+        l.info("Shutting down...");
+        if (checker != null) {
+            checker ! InnerProtocol.StopChecker
+        }
+
+        shutdownModules
+
+        if (db != null) {
+            db.close
+        }
+        l.info("Bye");
+    }
+
+    init
 }
