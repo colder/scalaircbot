@@ -11,4 +11,4 @@ test: scalafiles
 run: scalafiles onlyrun
 
 onlyrun:
-	scala -cp classes:${libs} ircbot.Main config-prod.xml
+	scala -cp classes:${libs} ircbot.Main config-prod.xml 2>&1 | tee -a bot.log
