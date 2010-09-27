@@ -16,7 +16,7 @@ class Control(val cfg: Config) extends Actor {
     val p = new Protocol(this)
 
     /* Database connection */
-    val db = new MysqlConnection(cfg.dbDatabase, cfg.dbUser, cfg.dbPass)
+    val db = new MysqlConnection(cfg.dbHost, cfg.dbPort, cfg.dbDatabase, cfg.dbUser, cfg.dbPass)
 
     /* Special chanserv module used to perform delayed OP Actions */
     val chanserv = new modules.Chanserv(this)

@@ -9,6 +9,8 @@ class Config(path: String) {
     val dbUser = (db \ "@user").text
     val dbPass = (db \ "@pass").text
     val dbDatabase = (db \ "@database").text
+    val dbHost = (db \ "@host").text
+    val dbPort = (db \ "@port").text.toInt
 
     private val host = data \ "host" head
     val hostHost = (host \ "@host").text
