@@ -8,5 +8,7 @@ scalafiles:
 test: scalafiles
 	scala -cp classes:${libs} ircbot.Main config-test.xml
 
-run: scalafiles
-	scala -cp classes:${libs} ircbot.Main config-prod.xml
+run: scalafiles onlyrun
+
+onlyrun:
+	scala -cp classes:${libs} ircbot.Main config-prod.xml 2>&1 | tee -a bot.log
