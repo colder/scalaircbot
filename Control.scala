@@ -18,6 +18,9 @@ class Control(val cfg: Config) extends Actor {
     /* Database connection */
     var db: MysqlConnection = null
 
+    /* Mask Storage and Handling */
+    var maskStore: MaskStore = null
+
     /* Special chanserv module used to perform delayed OP Actions */
     var chanserv: modules.Chanserv = null
 
@@ -29,6 +32,9 @@ class Control(val cfg: Config) extends Actor {
 
     /* Stores the time of the last message to detect disconnects */
     var lastMessage: Long = -1;
+
+    /* Stores the time of the last message to detect disconnects */
+    var connected: Boolean = false;
 
     /* Register a specific module */
     def registerModule(module: Module) {
@@ -61,32 +67,7 @@ class Control(val cfg: Config) extends Actor {
     }
 
     /* Asynchronous checks of the connection */
-    val checker = actor {
-        import InnerProtocol._
-
-        var continue = true
-        val detectionInterval = 2*60;
-
-        while(continue) {
-            // wait for kill message
-            Actor.receiveWithin(detectionInterval*1000/10) {
-                case StopChecker =>
-                    continue = false;
-            }
-
-            if (continue) {
-                val curTime = System.currentTimeMillis/1000
-                if (curTime - detectionInterval > lastMessage) {
-                    l.warn("Looks like we lost contact!")
-                    Control.this ! ReinitConnection
-                    l.warn("Reinit ordered!")
-                } else if (curTime - detectionInterval/2 > lastMessage) {
-                    l.warn("Trying to establish contact...")
-                    c.writeLine("PING :"+curTime)
-                }
-            }
-        }
-    }
+    var checker: ConnectionChecker = null
 
     def act() {
         import InnerProtocol._
@@ -136,17 +117,22 @@ class Control(val cfg: Config) extends Actor {
                     dispatchMessage(msg)
                 case ReinitConnection =>
                     l.warn("Reinitializing connection");
+                    lastMessage = System.currentTimeMillis/1000
                     registered  = false;
                     registering = false;
 
                     try {
+                        connected = false;
                         c ! ReinitConnection
+                        l.info("Connecting to IRC server...")
                         c = new Connection(cfg.hostHost, cfg.hostPort, l)
                         c.start
                         reconnectModules
+                        connected = true
                     } catch {
                         case e: java.net.SocketTimeoutException =>
                             l.warn("Connection timeout")
+                            connected = false
                         case e: java.net.UnknownHostException =>
                             l.warn("Unknown Host: " + e.getMessage)
                         case e =>
@@ -160,15 +146,16 @@ class Control(val cfg: Config) extends Actor {
     }
 
     def register(release: Boolean) {
-        if (!cfg.authPass.equals("")) {
-            p.pass(":"+cfg.authNick+" "+cfg.authPass)
-        }
-        p.user(cfg.authNick, cfg.authNick, cfg.authNick, cfg.authRealName)
-        p.nick(nick)
 
         if (release && !cfg.authPass.equals("")) {
             nick = cfg.authNick;
             p.msg("nickserv", "release "+nick+" "+cfg.authPass)
+            p.nick(nick)
+        } else {
+            if (!cfg.authPass.equals("")) {
+                p.pass(":"+cfg.authNick+" "+cfg.authPass)
+            }
+            p.user(cfg.authNick, cfg.authNick, cfg.authNick, cfg.authRealName)
             p.nick(nick)
         }
 
@@ -178,6 +165,7 @@ class Control(val cfg: Config) extends Actor {
     /* Start the connection Actor as well */
     override def start() = {
         c.start
+        connected = true;
         super.start
     }
 
@@ -200,12 +188,21 @@ class Control(val cfg: Config) extends Actor {
         try {
             l.info("Connecting to IRC server...")
             c        = new Connection(cfg.hostHost, cfg.hostPort, l)
+
             l.info("Loading Protocol...")
             p        = new Protocol(this)
+
             l.info("Connecting to Database...")
             db       = new MysqlConnection(cfg.dbHost, cfg.dbPort, cfg.dbDatabase, cfg.dbUser, cfg.dbPass)
+
+            l.info("Loading Mask Store...")
+            maskStore = new MaskStore(this)
+
             l.info("Loading ChanServ Module...")
             chanserv = new modules.Chanserv(this)
+
+            checker = new ConnectionChecker(this)
+            checker start
 
             registerDefaultModules
         } catch {
