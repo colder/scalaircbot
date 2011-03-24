@@ -44,7 +44,6 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
                         messages -= from.nick
                     }
 
-                }
 
                     // check that messages are of decent length
                     addShortMessage(from.nick, msg)
@@ -53,6 +52,7 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
                         ctl.p.msg(channel, from.nick+", please stop using your enter key as punctuation, thanks.")
                         shortMessages -= from.nick
                     }
+                }
 
                 cleanup
 
