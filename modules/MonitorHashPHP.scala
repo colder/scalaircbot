@@ -42,15 +42,14 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
                     if (isFlooding(from.nick)) {
                         mute(from, Minutes(5), "to prevent them from flooding the channel more")
                         messages -= from.nick
-                    }
+                    } else {
+                        // check that messages are of decent length
+                        addShortMessage(from.nick, msg)
 
-
-                    // check that messages are of decent length
-                    addShortMessage(from.nick, msg)
-
-                    if (isAbusingEnter(from.nick)) {
-                        ctl.p.msg(channel, from.nick+", please stop using your enter key as punctuation, thanks.")
-                        shortMessages -= from.nick
+                        if (isAbusingEnter(from.nick)) {
+                            ctl.p.msg(channel, from.nick+", please stop using your enter key as punctuation, thanks.")
+                            shortMessages -= from.nick
+                        }
                     }
                 }
 
