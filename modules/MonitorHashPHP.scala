@@ -11,8 +11,8 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
     val profanityTimespan = 2880
     val profanityThreshold = 3
 
-    val shortMessagesThresold   = 3
-    val shortMessagesBufferSize = 3
+    val shortMessagesThresold   = 4
+    val shortMessagesBufferSize = 5
     val shortMessagesTimespan   = 1800
 
     var messages      = Map[String, List[Long]]().withDefaultValue(Nil)
@@ -102,8 +102,12 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
     def addMessage(nick: String) =
         messages += nick -> (now :: messages(nick))
 
+    def countRealWords(msg: String) = {
+        words(msg.replaceAll("[^a-zA-Z0-9 ]+", "")).size
+    }
+
     def addShortMessage(nick: String, msg: String) =
-        shortMessages += nick -> ((words(msg).size, now) :: shortMessages(nick).take(shortMessagesBufferSize-1))
+        shortMessages += nick -> ((countRealWords(msg), now) :: shortMessages(nick).take(shortMessagesBufferSize-1))
 
     def isAbusingEnter(nick: String) = {
         val msgs = shortMessages(nick).map(_._1)
