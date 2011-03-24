@@ -8,9 +8,25 @@ class Manager(ctl: Control) extends Module(ctl) with Auth {
         msg match {
             case Msg(prefix, to, msg) =>
                 if (to.toList.head != '#') msg.split(" ", 3).toList match {
+                    case "!masks" :: "reload" :: Nil =>
+                        if (isGranted(ctl, prefix, Manager)) {
+                            ctl.maskStore.reload
+                            ctl.p.msg(prefix.nick, "Masks Reloaded.")
+                        } else {
+                            ctl.p.msg(prefix.nick, "Permission denied.")
+                        }
+                        false
                     case "!masks" :: Nil =>
                         if (isGranted(ctl, prefix, Manager)) {
                             listAccesses(prefix)
+                        } else {
+                            ctl.p.msg(prefix.nick, "Permission denied.")
+                        }
+                        false
+                    case "!say" :: to :: msg :: Nil =>
+                        if (isGranted(ctl, prefix, Manager)) {
+                            ctl.p.msg(to, msg)
+                            ctl.p.msg(prefix.nick, "Message transmitted.")
                         } else {
                             ctl.p.msg(prefix.nick, "Permission denied.")
                         }
@@ -80,6 +96,8 @@ class Manager(ctl: Control) extends Module(ctl) with Auth {
                 ctl.p.msg(from.nick, "Mask '"+mask+"' not found")
             }
 
+            ctl.maskStore.reload
+
             stmt.close
         } catch {
             case ex: Exception =>
@@ -92,6 +110,9 @@ class Manager(ctl: Control) extends Module(ctl) with Auth {
 
             ctl.db.prepareStatement("REPLACE irc_users SET mask = ?, level = ?", mask, level).executeUpdate
             ctl.p.msg(from.nick, "Access '"+level+"' granted to mask '"+mask+"'")
+
+            ctl.maskStore.reload
+
         } catch {
             case ex: Exception =>
                 ctl.db.handleException(ex)

@@ -1,7 +1,5 @@
 package ircbot.modules
 
-import scala.collection.mutable.HashMap
-
 import ircbot._
 import helpers.Auth
 import helpers.Commands
@@ -13,8 +11,13 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
     val profanityTimespan = 2880
     val profanityThreshold = 3
 
-    val messages = new HashMap[String, List[Long]]()
-    val profanity = new HashMap[String, List[(String, Long)]]()
+    val shortMessagesThresold   = 3
+    val shortMessagesBufferSize = 3
+    val shortMessagesTimespan   = 1800
+
+    var messages      = Map[String, List[Long]]().withDefaultValue(Nil)
+    var profanity     = Map[String, List[(String, Long)]]().withDefaultValue(Nil)
+    var shortMessages = Map[String, List[(Int, Long)]]().withDefaultValue(Nil)
 
     var lastCleanup = 0
 
@@ -42,6 +45,14 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
                     }
 
                 }
+
+                    // check that messages are of decent length
+                    addShortMessage(from.nick, msg)
+
+                    if (isAbusingEnter(from.nick)) {
+                        ctl.p.msg(channel, from.nick+", please stop using your enter key as punctuation, thanks.")
+                        shortMessages -= from.nick
+                    }
 
                 cleanup
 
@@ -86,27 +97,35 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
         case _ => true
     }
 
-    def addMessage(nick: String) = messages(nick) = (messages get nick match {
-        case Some(msgs) =>  System.currentTimeMillis :: msgs
-        case None => System.currentTimeMillis :: Nil
-    })
+    def now = System.currentTimeMillis
 
-    def addProfanity(nick: String, msg: String) = profanity(nick) = (profanity get nick match {
-        case Some(msgs) =>  (msg, System.currentTimeMillis) :: msgs
-        case None => (msg, System.currentTimeMillis) :: Nil
-    })
+    def addMessage(nick: String) =
+        messages += nick -> (now :: messages(nick))
 
-    def isFlooding(nick: String) = messages get nick match {
-        case Some(msgs) => msgs.filter{ _ > System.currentTimeMillis-floodTimespan*1000 }.length >= floodThreshold
-        case None => false
+    def addShortMessage(nick: String, msg: String) =
+        shortMessages += nick -> ((words(msg).size, now) :: shortMessages(nick).take(shortMessagesBufferSize-1))
+
+    def isAbusingEnter(nick: String) = {
+        val msgs = shortMessages(nick).map(_._1)
+
+        if (msgs.size == shortMessagesBufferSize) {
+            msgs.foldRight(0)(_ + _) < shortMessagesThresold * msgs.size
+        } else {
+            false
+        }
     }
 
-    def isUsingProfanity(nick: String, threshold: Int) = profanity get nick match {
-        case Some(msgs) => msgs.filter{ _._2 > System.currentTimeMillis-profanityTimespan*1000 }.length == threshold
-        case None => false
-    }
+    def addProfanity(nick: String, msg: String) =
+        profanity += nick -> ((msg, now) :: profanity(nick))
 
-    def isAbusingProfanity(nick: String): Boolean = isUsingProfanity(nick, profanityThreshold)
+    def isFlooding(nick: String) =
+        messages(nick).filter{ _ > now-floodTimespan*1000 }.length >= floodThreshold
+
+    def isUsingProfanity(nick: String, threshold: Int) =
+        profanity(nick).filter{ _._2 > now-profanityTimespan*1000 }.length == threshold
+
+    def isAbusingProfanity(nick: String): Boolean =
+        isUsingProfanity(nick, profanityThreshold)
 
     def isProfanity(msg: String) = {
         try {
@@ -128,23 +147,33 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
 
     def cleanup = {
         if (lastCleanup > 100) {
-            for ( entry <- messages) entry match {
+            for (entry <- messages) entry match {
                 case (nick, msgs) =>
-                    val newMsgs = msgs filter { _ < System.currentTimeMillis-floodTimespan*1000 }
+                    val newMsgs = msgs filter { _ < now-floodTimespan*1000 }
                     if (newMsgs.length == 0) {
                         messages -= nick
                     } else {
-                        messages(nick) = newMsgs
+                        messages += nick -> newMsgs
                     }
             }
 
-            for ( entry <- profanity) entry match {
+            for (entry <- profanity) entry match {
                 case (nick, msgs) =>
-                    val newMsgs = msgs filter{ _._2 < System.currentTimeMillis-profanityTimespan*1000 };
+                    val newMsgs = msgs filter{ _._2 < now-profanityTimespan*1000 };
                     if (newMsgs.length == 0) {
                         profanity -= nick
                     } else {
-                        profanity(nick) = newMsgs
+                        profanity += nick -> newMsgs
+                    }
+            }
+
+            for (entry <- shortMessages) entry match {
+                case (nick, msgs) =>
+                    val newMsgs = msgs filter{ _._2 < now-shortMessagesTimespan*1000 };
+                    if (newMsgs.length == 0) {
+                        shortMessages -= nick
+                    } else {
+                        shortMessages += nick -> newMsgs
                     }
             }
 
