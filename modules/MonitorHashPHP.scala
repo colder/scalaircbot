@@ -13,7 +13,7 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
 
     val shortMessagesThresold   = 4
     val shortMessagesBufferSize = 5
-    val shortMessagesTimespan   = 1800
+    val shortMessagesTimespan   = 30
 
     var messages      = Map[String, List[Long]]().withDefaultValue(Nil)
     var profanity     = Map[String, List[(String, Long)]]().withDefaultValue(Nil)
