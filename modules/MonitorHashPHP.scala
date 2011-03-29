@@ -11,7 +11,7 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
     val profanityTimespan = 2880
     val profanityThreshold = 3
 
-    val shortMessagesThresold   = 4
+    val shortMessagesThresold   = 3
     val shortMessagesBufferSize = 5
     val shortMessagesTimespan   = 30
 
@@ -47,7 +47,7 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
                         addShortMessage(from.nick, msg)
 
                         if (isAbusingEnter(from.nick)) {
-                            ctl.p.msg(channel, from.nick+", please stop using your enter key as punctuation, thanks.")
+                            ctl.p.msg(from.nick, "Please stop using your enter key as punctuation, thanks.")
                             shortMessages -= from.nick
                         }
                     }
@@ -109,7 +109,7 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
         shortMessages += nick -> ((countRealWords(msg), now) :: shortMessages(nick).take(shortMessagesBufferSize-1))
 
     def isAbusingEnter(nick: String) = {
-        val msgs = shortMessages(nick).map(_._1)
+        val msgs = shortMessages(nick).filter{ _._2 > now-shortMessagesTimespan*1000 }.map(_._1)
 
         if (msgs.size == shortMessagesBufferSize) {
             msgs.foldRight(0)(_ + _) < shortMessagesThresold * msgs.size
