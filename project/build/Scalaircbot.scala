@@ -4,7 +4,7 @@ import Process._
 class ScalaIRCBotProject(info: ProjectInfo) extends DefaultProject(info) {
 	override def mainClass: Option[String] = Some("ircbot.Main")
 	lazy val go = task { 
-		"scala -cp target/scala_2.8.1/classes:lib_managed/scala_2.8.1/compile/* ircbot.Main config-prod.xml 2>&1 | tee -a bot.log" !;
+		"scala -cp target/scala_2.8.1/classes:lib_managed/scala_2.8.1/compile/* ircbot.Main config-prod.xml 2>&1" #| "tee -a bot.log" !;
 	 	None 
 	} dependsOn(compile)
 
