@@ -1,6 +1,8 @@
 import sbt._
 
 class ScalaIRCBotProject(info: ProjectInfo) extends DefaultProject(info) {
+	override def mainClass: Option[String] = Some("ircbot.Main")
+
 	val codec = "commons-codec" % "commons-codec" % "1.3"
 	val httpclient = "commons-httpclient" % "commons-httpclient" % "3.1"
 	val logging = "commons-logging" % "commons-logging" % "1.1.1"
