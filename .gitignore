@@ -3,3 +3,7 @@ others
 config-test.xml
 config-prod.xml
 bot.log
+target/
+lib_managed/
+src_managed/
+project/boot/
