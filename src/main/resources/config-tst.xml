@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ircbot>
+ <host host="irc.freenode.org" port="6667" />
+ <db host="localhost" user="ircbot" pass="ircbot" database="ircbot" />
+ <auth nick="cythbot" pass="" realname="cythbot" />
+ <perform>
+  <channel>#cyth</channel>
+ </perform>
+</ircbot>
