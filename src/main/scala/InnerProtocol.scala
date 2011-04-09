@@ -4,6 +4,10 @@ package ircbot
 object InnerProtocol {
     // Request a line from the server
     object ReadLine;
+
+    object StartListening
+    object StopListening
+
     // Write a line to the server
     case class WriteLine(line: String);
     // Response from the server

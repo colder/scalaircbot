@@ -4,6 +4,7 @@ import java.io._
 import java.net.{InetAddress,ServerSocket,Socket,SocketException, InetSocketAddress}
 
 import scala.actors.Actor
+import scala.actors.OutputChannel
 import scala.actors.Actor._
 
 class Connection(host: String, port: Int, logger: Logger) extends Actor {
@@ -14,6 +15,8 @@ class Connection(host: String, port: Int, logger: Logger) extends Actor {
     var messages: List[Long] = Nil
     val timespan  = 5
     val threshold = 4
+
+    var listeners = Set[OutputChannel[Any]]();
 
     def init {
         val ia = InetAddress.getByName(host);
@@ -55,7 +58,15 @@ class Connection(host: String, port: Int, logger: Logger) extends Actor {
 
         while (continue) {
             receive {
-                case ReadLine => sender ! ReadLineAnswer(readLine)
+                case StartListening =>
+                    listeners += sender
+                case StopListening =>
+                    listeners -= sender
+
+                case ReadLine =>
+                    val line = readLine
+                    listeners.foreach(_ ! ReadLineAnswer(line))
+
                 case WriteLine(line) => writeLine(line)
                 case ReinitConnection =>
                     /* Shut the connection down */

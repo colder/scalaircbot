@@ -75,6 +75,7 @@ class Control(val cfg: Config) extends Actor {
         var registering = false
         var registered  = false
 
+        c ! StartListening
         while(continue) {
             c ! ReadLine
             receive {
@@ -140,6 +141,7 @@ class Control(val cfg: Config) extends Actor {
                     }
             }
         }
+        c ! StopListening
 
         /* Shutdown process... */
         shutdown
