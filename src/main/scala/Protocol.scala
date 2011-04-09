@@ -34,7 +34,12 @@ abstract class Message;
     case class Msg(from: Prefix, to: String, msg: String) extends Message
     case class Mode(from: Prefix, channel: String, modes: String, user: String) extends Message
     case class Invite(from: Prefix, channel: String) extends Message
+    case class Part(from: Prefix, channel: String) extends Message
+    case class Join(from: Prefix, channel: String) extends Message
+    case class Quit(from: Prefix) extends Message
+    case class Nick(from: Prefix, newnick: String) extends Message
     case class Ping(msg: String) extends Message
+
     case object Notice extends Message
     case object EOF extends Message
 
@@ -91,6 +96,34 @@ class Protocol(ctl: Control) {
                 Notice
             case "PING" :: arg :: Nil =>
                 Ping(arg)
+            case "NICK" :: nick :: Nil =>
+                prefix match {
+                    case Some(pr) =>
+                        Nick(pr, nick)
+                    case None => 
+                        Unknown(params)
+                }
+            case "QUIT" :: _ =>
+                prefix match {
+                    case Some(pr) =>
+                        Quit(pr)
+                    case None =>
+                        Unknown(params)
+                }
+            case "JOIN" :: channel :: _ =>
+                prefix match {
+                    case Some(pr) =>
+                        Join(pr, channel)
+                    case None =>
+                        Unknown(params)
+                }
+            case "PART" :: channel :: _ =>
+                prefix match {
+                    case Some(pr) =>
+                        Part(pr, channel)
+                    case None =>
+                        Unknown(params)
+                }
             case "INVITE" :: nick :: to :: Nil =>
                 prefix match {
                     case Some(pr) =>
