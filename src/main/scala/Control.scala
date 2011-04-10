@@ -23,6 +23,7 @@ class Control(val cfg: Config) extends Actor {
 
     /* Special chanserv module used to perform delayed OP Actions */
     var chanserv: modules.Chanserv = null
+    var trackers: modules.Trackers = null
 
     /* nickname of the bot */
     var nick = cfg.authNick
@@ -47,18 +48,13 @@ class Control(val cfg: Config) extends Actor {
         import modules._
         registerModule(new Protocol(this))
         registerModule(chanserv)
+        registerModule(trackers)
         registerModule(new Manager(this))
         registerModule(new MonitorHashPHP(this))
         registerModule(new RussianRoulette(this))
         registerModule(new Yahoo(this))
         registerModule(new Factoids(this))
 
-    }
-
-    var nickTrackers = Set[NickTracker]()
-
-    def registerNickTracker(nt: NickTracker) {
-        nickTrackers += nt
     }
 
     /* Display an error */
@@ -118,18 +114,6 @@ class Control(val cfg: Config) extends Actor {
                             register(false)
                         case EOF =>
                             continue = false
-
-                        case Part(pr, channel) =>
-                            nickTrackers.foreach(_.userParts(pr, channel))
-
-                        case Join(pr, channel) =>
-                            nickTrackers.foreach(_.userJoins(pr, channel))
-
-                        case Quit(pr) =>
-                            nickTrackers.foreach(_.userQuits(pr))
-
-                        case NickChange(pr, newnick) =>
-                            nickTrackers.foreach(_.userRenames(pr, Nick(newnick)))
 
                         case _ =>
                     }
@@ -220,6 +204,9 @@ class Control(val cfg: Config) extends Actor {
 
             l.info("Loading ChanServ Module...")
             chanserv = new modules.Chanserv(this)
+
+            l.info("Loading Trackers Module...")
+            trackers = new modules.Trackers(this)
 
             checker = new ConnectionChecker(this)
             checker start
