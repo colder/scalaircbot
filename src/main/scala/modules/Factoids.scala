@@ -1,6 +1,6 @@
-package ircbot.modules
+package ircbot
+package modules
 
-import ircbot._
 import helpers.Auth
 import helpers.Commands
 
