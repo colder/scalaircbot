@@ -4,6 +4,7 @@ import sql.MysqlConnection
 
 import scala.actors.Actor
 import scala.actors.Actor._
+import utils._
 
 // Main controlling class
 class Control(val cfg: Config) extends Actor {

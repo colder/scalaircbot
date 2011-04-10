@@ -3,6 +3,8 @@ package ircbot.modules
 import ircbot._
 import helpers.{Auth,Commands}
 
+import utils._
+
 abstract class Action {
     def execute
 }

@@ -7,6 +7,8 @@ import scala.actors.Actor
 import scala.actors.OutputChannel
 import scala.actors.Actor._
 
+import utils.Logger
+
 class Connection(host: String, port: Int, logger: Logger) extends Actor {
     val socket = new Socket()
     var out: PrintWriter   = null

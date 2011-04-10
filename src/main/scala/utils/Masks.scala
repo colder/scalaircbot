@@ -1,4 +1,5 @@
 package ircbot
+package utils
 
 import scala.collection.immutable.Map
 import scala.util.matching.Regex

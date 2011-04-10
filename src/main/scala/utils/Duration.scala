@@ -1,4 +1,5 @@
 package ircbot
+package utils
 
 abstract class Duration(seconds: Int) {
     val toSeconds = seconds

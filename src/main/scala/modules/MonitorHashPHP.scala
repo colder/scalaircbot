@@ -3,6 +3,7 @@ package ircbot.modules
 import ircbot._
 import helpers.Auth
 import helpers.Commands
+import utils._
 
 class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
     val channel = Channel("##php")

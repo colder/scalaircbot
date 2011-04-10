@@ -1,4 +1,6 @@
 package ircbot
+package utils
+
 import modules.NickTracker
 
 case class Ident(val value: String)
