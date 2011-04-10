@@ -1,8 +1,9 @@
 package ircbot
+import modules.NickTracker
 
 case class Ident(val value: String)
 
-class IdentCache(ctl: Control) {
+class Idents(ctl: Control) extends NickTracker {
     def now = System.currentTimeMillis
 
     val cacheTimeout = 24*60*60
@@ -13,9 +14,9 @@ class IdentCache(ctl: Control) {
         def expired = (now-time) > (cacheTimeout*1000)
     }
 
-    var nicksToIdents = Map[String, CachedIdent]()
+    var nicksToIdents = Map[Nick, CachedIdent]()
 
-    def get(nick: String): Option[Ident] = {
+    def get(nick: Nick): Option[Ident] = {
         nicksToIdents.get(nick) match {
             case Some(cid) if !cid.expired =>
                 Some(cid.ident)
@@ -24,11 +25,11 @@ class IdentCache(ctl: Control) {
         }
     }
 
-    def request(nick: String) = {
+    def request(nick: Nick) = {
         None
     }
 
-    def rename(nickFrom: String, nickTo: String) = {
+    def rename(nickFrom: Nick, nickTo: Nick) = {
         nicksToIdents.get(nickFrom) match {
             case Some(id) =>
                 nicksToIdents -= nickFrom
@@ -37,11 +38,16 @@ class IdentCache(ctl: Control) {
         }
     }
 
-    def leave(nick: String) = {
+    def leave(nick: Nick) = {
         nicksToIdents -= nick
     }
 
     def cleanup = {
         nicksToIdents = nicksToIdents.filter(!_._2.expired)
     }
+
+    def userJoins(p: Prefix, channel: Channel) = () /* ignore */
+    def userParts(p: Prefix, channel: Channel) = leave(p.nick)
+    def userQuits(p: Prefix) = leave(p.nick)
+    def userRenames(p: Prefix, newnick: Nick) = rename(p.nick, newnick)
 }

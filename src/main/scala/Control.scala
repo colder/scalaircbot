@@ -25,6 +25,9 @@ class Control(val cfg: Config) extends Actor {
     var chanserv: modules.Chanserv = null
     var trackers: modules.Trackers = null
 
+    /* Store for Nick->Idents relationships */
+    var idents: Idents = null
+
     /* nickname of the bot */
     var nick = cfg.authNick
 
@@ -207,6 +210,10 @@ class Control(val cfg: Config) extends Actor {
 
             l.info("Loading Trackers Module...")
             trackers = new modules.Trackers(this)
+
+            /* Freenode Idents attached to Nicks */
+            idents = new Idents(this)
+            trackers.registerNickTracker(idents)
 
             checker = new ConnectionChecker(this)
             checker start
