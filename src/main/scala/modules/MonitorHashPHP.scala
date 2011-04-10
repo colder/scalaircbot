@@ -5,7 +5,7 @@ import helpers.Auth
 import helpers.Commands
 
 class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
-    val channel = "##php"
+    val channel = Channel("##php")
     val floodTimespan = 4
     val floodThreshold = 5
     val profanityTimespan = 2880
@@ -15,9 +15,9 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
     val shortMessagesBufferSize = 5
     val shortMessagesTimespan   = 30
 
-    var messages      = Map[String, List[Long]]().withDefaultValue(Nil)
-    var profanity     = Map[String, List[(String, Long)]]().withDefaultValue(Nil)
-    var shortMessages = Map[String, List[(Int, Long)]]().withDefaultValue(Nil)
+    var messages      = Map[Nick, List[Long]]().withDefaultValue(Nil)
+    var profanity     = Map[Nick, List[(String, Long)]]().withDefaultValue(Nil)
+    var shortMessages = Map[Nick, List[(Int, Long)]]().withDefaultValue(Nil)
 
     var lastCleanup = 0
 
@@ -98,17 +98,17 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
 
     def now = System.currentTimeMillis
 
-    def addMessage(nick: String) =
+    def addMessage(nick: Nick) =
         messages += nick -> (now :: messages(nick))
 
     def countRealWords(msg: String) = {
         words(msg.replaceAll("[^a-zA-Z0-9 ]+", "")).size
     }
 
-    def addShortMessage(nick: String, msg: String) =
+    def addShortMessage(nick: Nick, msg: String) =
         shortMessages += nick -> ((countRealWords(msg), now) :: shortMessages(nick).take(shortMessagesBufferSize-1))
 
-    def isAbusingEnter(nick: String) = {
+    def isAbusingEnter(nick: Nick) = {
         val msgs = shortMessages(nick).filter{ _._2 > now-shortMessagesTimespan*1000 }.map(_._1)
 
         if (msgs.size == shortMessagesBufferSize) {
@@ -118,16 +118,16 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
         }
     }
 
-    def addProfanity(nick: String, msg: String) =
+    def addProfanity(nick: Nick, msg: String) =
         profanity += nick -> ((msg, now) :: profanity(nick))
 
-    def isFlooding(nick: String) =
+    def isFlooding(nick: Nick) =
         messages(nick).filter{ _ > now-floodTimespan*1000 }.length >= floodThreshold
 
-    def isUsingProfanity(nick: String, threshold: Int) =
+    def isUsingProfanity(nick: Nick, threshold: Int) =
         profanity(nick).filter{ _._2 > now-profanityTimespan*1000 }.length == threshold
 
-    def isAbusingProfanity(nick: String): Boolean =
+    def isAbusingProfanity(nick: Nick): Boolean =
         isUsingProfanity(nick, profanityThreshold)
 
     def isProfanity(msg: String) = {

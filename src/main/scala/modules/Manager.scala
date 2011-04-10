@@ -6,8 +6,8 @@ import helpers.Auth
 class Manager(ctl: Control) extends Module(ctl) with Auth {
     def handleMessage(msg: Message) = {
         msg match {
-            case Msg(prefix, to, msg) =>
-                if (to.toList.head != '#') msg.split(" ", 3).toList match {
+            case Msg(prefix, to: Channel, msg) =>
+                msg.split(" ", 3).toList match {
                     case "!masks" :: "reload" :: Nil =>
                         if (isGranted(ctl, prefix, Manager)) {
                             ctl.maskStore.reload
@@ -25,7 +25,11 @@ class Manager(ctl: Control) extends Module(ctl) with Auth {
                         false
                     case "!say" :: to :: msg :: Nil =>
                         if (isGranted(ctl, prefix, Manager)) {
-                            ctl.p.msg(to, msg)
+                            if (to startsWith "#") {
+                                ctl.p.msg(Channel(to), msg)
+                            } else {
+                                ctl.p.msg(Nick(to), msg)
+                            }
                             ctl.p.msg(prefix.nick, "Message transmitted.")
                         } else {
                             ctl.p.msg(prefix.nick, "Permission denied.")
@@ -47,7 +51,7 @@ class Manager(ctl: Control) extends Module(ctl) with Auth {
                         false
                     case "!join" :: chan :: Nil =>
                         if (isGranted(ctl, prefix, Manager)) {
-                            ctl.p.join(chan)
+                            ctl.p.join(Channel(chan))
                             ctl.p.msg(prefix.nick, "Joined channel "+chan+".")
                         } else {
                             ctl.p.msg(prefix.nick, "Permission denied.")
@@ -55,7 +59,7 @@ class Manager(ctl: Control) extends Module(ctl) with Auth {
                         false
                     case "!part" :: chan :: Nil =>
                         if (isGranted(ctl, prefix, Manager)) {
-                            ctl.p.part(chan)
+                            ctl.p.part(Channel(chan))
                             ctl.p.msg(prefix.nick, "Left channel "+chan+".")
                         } else {
                             ctl.p.msg(prefix.nick, "Permission denied.")
@@ -77,8 +81,6 @@ class Manager(ctl: Control) extends Module(ctl) with Auth {
                         false
                     case _ =>
                         true
-                } else {
-                    true
                 }
             case _ =>
                 true

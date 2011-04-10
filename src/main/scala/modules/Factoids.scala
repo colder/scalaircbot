@@ -6,80 +6,79 @@ import helpers.Commands
 
 class Factoids(ctl: Control) extends Module(ctl) with Auth with Commands {
     def handleMessage(msg: Message) = msg match {
-        case Msg(from, to, msg) =>
-            if (to.toList.head == '#') {
-                // msg sent on channel
-                if (msg.startsWith("!+")) {
-                    if (isGranted(ctl, from, Normal, Manager, Administrator)) {
-                        sendFact(to, msg.substring(2), false)
-                    } else {
-                        ctl.p.msg(from.nick, "This public command can only be used by regulars. You can simply msg me: /msg php-bot "+msg.substring(2))
-                    }
-                } else if (msg.startsWith("!?")) {
-                    if (isGranted(ctl, from, Normal, Manager, Administrator)) {
-                        searchFacts(from, to, msg.substring(2))
-                    } else {
-                        ctl.p.msg(from.nick, "This public command can only be used by regulars.")
-                    }
-
-                } else if (msg.startsWith("!tell")) {
-                    words(msg, 4) match {
-                        case "!tell" :: nick :: "about" :: fact :: Nil =>
-                            sendFact(nick, fact, false)
-                        case xs =>
-                    }
+        case Msg(from, to: Channel, msg) =>
+            // msg sent on channel
+            if (msg.startsWith("!+")) {
+                if (isGranted(ctl, from, Normal, Manager, Administrator)) {
+                    sendFact(to, msg.substring(2), false)
                 } else {
-                    msg.split("[:,] ?!\\+", 2).toList match {
-                        case nick :: fact :: Nil =>
-                            if (isGranted(ctl, from, Normal, Manager, Administrator)) {
-                                lookup(fact) match {
-                                    case Some(x) => ctl.p.msg(to, nick+", "+x);
-                                    case None =>
-                                }
-                            } else {
-                                ctl.p.msg(from.nick, "This public command can only be used by regulars. You can simply msg me: /msg php-bot "+fact)
-                            }
-                        case xs =>
-                    }
+                    ctl.p.msg(from.nick, "This public command can only be used by regulars. You can simply msg me: /msg php-bot "+msg.substring(2))
+                }
+            } else if (msg.startsWith("!?")) {
+                if (isGranted(ctl, from, Normal, Manager, Administrator)) {
+                    searchFacts(from, to, msg.substring(2))
+                } else {
+                    ctl.p.msg(from.nick, "This public command can only be used by regulars.")
+                }
+
+            } else if (msg.startsWith("!tell")) {
+                words(msg, 4) match {
+                    case "!tell" :: nick :: "about" :: fact :: Nil =>
+                        sendFact(Nick(nick), fact, false)
+                    case xs =>
                 }
             } else {
-                // msg sent on private
-                if (to.equals(from.nick)) {
-                    ctl.error("Sending message to myself..")
-                } else if (!msg.equals("VERSION")){
-                    words(msg, 2) match {
-                        case "!def" :: rest :: Nil => rest.split("=", 2).toList match {
-                            case fact :: description :: Nil => 
-                                if (isGranted(ctl, from, Normal, Manager, Administrator)) {
-                                    defineFact(from, fact.trim, description.trim)
-                                } else {
-                                    ctl.p.msg(from.nick, "Permission denied.")
-                                }
-                            case _ =>
-                                ctl.p.msg(from.nick, "?")
-                        }
-                        case "!undef" :: fact :: Nil =>
-                            if (isGranted(ctl, from, Normal, Manager, Administrator)) {
-                                undefineFact(from, fact)
-                            } else {
-                                ctl.p.msg(from.nick, "Permission denied.")
+                msg.split("[:,] ?!\\+", 2).toList match {
+                    case nick :: fact :: Nil =>
+                        if (isGranted(ctl, from, Normal, Manager, Administrator)) {
+                            lookup(fact) match {
+                                case Some(x) => ctl.p.msg(to, nick+", "+x);
+                                case None =>
                             }
-                        case "!search" :: fact :: Nil =>
+                        } else {
+                            ctl.p.msg(from.nick, "This public command can only be used by regulars. You can simply msg me: /msg php-bot "+fact)
+                        }
+                    case xs =>
+                }
+            }
+            true
+        case Msg(from, to: Nick, msg) =>
+            // msg sent on private
+            if (to.equals(from.nick)) {
+                ctl.error("Sending message to myself..")
+            } else if (!msg.equals("VERSION")){
+                words(msg, 2) match {
+                    case "!def" :: rest :: Nil => rest.split("=", 2).toList match {
+                        case fact :: description :: Nil => 
                             if (isGranted(ctl, from, Normal, Manager, Administrator)) {
-                                searchFacts(from, from.nick, fact)
+                                defineFact(from, fact.trim, description.trim)
                             } else {
                                 ctl.p.msg(from.nick, "Permission denied.")
                             }
                         case _ =>
-                            sendFact(from.nick, msg, true)
+                            ctl.p.msg(from.nick, "?")
                     }
+                    case "!undef" :: fact :: Nil =>
+                        if (isGranted(ctl, from, Normal, Manager, Administrator)) {
+                            undefineFact(from, fact)
+                        } else {
+                            ctl.p.msg(from.nick, "Permission denied.")
+                        }
+                    case "!search" :: fact :: Nil =>
+                        if (isGranted(ctl, from, Normal, Manager, Administrator)) {
+                            searchFacts(from, from.nick, fact)
+                        } else {
+                            ctl.p.msg(from.nick, "Permission denied.")
+                        }
+                    case _ =>
+                        sendFact(from.nick, msg, true)
                 }
             }
             true
         case _ => true
     }
 
-    def sendFact(to: String, pattern: String, sendError: Boolean) = lookup(pattern) match {
+    def sendFact(to: AbsChannel, pattern: String, sendError: Boolean) = lookup(pattern) match {
         case Some(x) => ctl.p.msg(to, x)
         case None => if (sendError) ctl.p.msg(to, "?")
     }
@@ -117,7 +116,7 @@ class Factoids(ctl: Control) extends Module(ctl) with Auth with Commands {
         }
     }
 
-    def searchFacts(from: Prefix, to: String, pattern: String) = {
+    def searchFacts(from: Prefix, to: AbsChannel, pattern: String) = {
         try {
             val stmt = ctl.db.prepareStatement("SELECT SQL_CALC_FOUND_ROWS token, description FROM irc_factoids WHERE MATCH(token, description) AGAINST(?) LIMIT 10", pattern)
             val results = stmt.executeQuery

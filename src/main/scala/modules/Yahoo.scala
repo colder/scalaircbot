@@ -9,7 +9,10 @@ class Yahoo(ctl: Control) extends Module(ctl) with Http with Auth {
         case Msg(from, to, msg) if msg startsWith "!web " => {
 
             if (isGranted(ctl, from, Normal, Manager, Administrator)) {
-                val dest = if (to startsWith "#") to else from.nick
+                val dest = to match {
+                    case Channel(name) => to
+                    case _ => from.nick
+                }
 
                 val pattern = msg substring 5;
                 val res = search(pattern);

@@ -55,6 +55,12 @@ class Control(val cfg: Config) extends Actor {
 
     }
 
+    var nickTrackers = Set[NickTracker]()
+
+    def registerNickTracker(nt: NickTracker) {
+        nickTrackers += nt
+    }
+
     /* Display an error */
     def error(msg: String) = l.err(msg)
 
@@ -101,17 +107,29 @@ class Control(val cfg: Config) extends Actor {
                         case Error(433, _) =>
                             l.warn("Nick is already in use!")
 
-                            nick = nick+"_"
+                            nick = nick.nextNick
 
                             register(true)
                         case Error(437, _) =>
                             l.warn("Nick is unavailable!")
 
-                            nick = nick+"_"
+                            nick = nick.nextNick
 
                             register(false)
                         case EOF =>
                             continue = false
+
+                        case Part(pr, channel) =>
+                            nickTrackers.foreach(_.userParts(pr, channel))
+
+                        case Join(pr, channel) =>
+                            nickTrackers.foreach(_.userJoins(pr, channel))
+
+                        case Quit(pr) =>
+                            nickTrackers.foreach(_.userQuits(pr))
+
+                        case NickChange(pr, newnick) =>
+                            nickTrackers.foreach(_.userRenames(pr, Nick(newnick)))
 
                         case _ =>
                     }
@@ -151,13 +169,13 @@ class Control(val cfg: Config) extends Actor {
 
         if (release && !cfg.authPass.equals("")) {
             nick = cfg.authNick;
-            p.msg("nickserv", "release "+nick+" "+cfg.authPass)
+            p.msg(Nick.NickServ, "release "+nick.name+" "+cfg.authPass)
             p.nick(nick)
         } else {
             if (!cfg.authPass.equals("")) {
-                p.pass(":"+cfg.authNick+" "+cfg.authPass)
+                p.pass(":"+cfg.authNick.name+" "+cfg.authPass)
             }
-            p.user(cfg.authNick, cfg.authNick, cfg.authNick, cfg.authRealName)
+            p.user(cfg.authNick.name, cfg.authNick.name, cfg.authNick.name, cfg.authRealName)
             p.nick(nick)
         }
 

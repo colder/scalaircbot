@@ -17,9 +17,9 @@ case class BanAction(p: Prefix, body: () => Unit) extends Action {
 case class DelayedAction(time: Long, requireOP: Boolean, action: Action);
 
 class Chanserv(ctl: Control) extends Module(ctl) with Auth with Commands {
-    var isOP           = Map[String, Boolean]().withDefaultValue(false)
-    var isRequestingOP = Map[String, Boolean]().withDefaultValue(false)
-    var delayedActions = Map[String, Set[DelayedAction]]().withDefaultValue(Set())
+    var isOP           = Map[Channel, Boolean]().withDefaultValue(false)
+    var isRequestingOP = Map[Channel, Boolean]().withDefaultValue(false)
+    var delayedActions = Map[Channel, Set[DelayedAction]]().withDefaultValue(Set())
 
     def handleMessage(msg: Message) = {
         var passThrough = true
@@ -35,7 +35,7 @@ class Chanserv(ctl: Control) extends Module(ctl) with Auth with Commands {
                 words(msg, 3) match {
                     case "!unban" :: channel :: nick :: Nil =>
                         if (isGranted(ctl, from, Manager, Administrator)) {
-                            if (unban(channel, nick)) {
+                            if (unban(Channel(channel), Nick(nick))) {
                                 ctl.p.msg(from.nick, "Nick "+nick+" unbanned form channel "+channel+".")
                             } else {
                                 ctl.p.msg(from.nick, "Nick "+nick+" not currently banned in channel "+channel+".")
@@ -56,7 +56,7 @@ class Chanserv(ctl: Control) extends Module(ctl) with Auth with Commands {
 
     private def now = System.currentTimeMillis/1000;
 
-    private def afterSeconds(channel: String, seconds: Int, requireOP: Boolean = false)(action: => Unit) =
+    private def afterSeconds(channel: Channel, seconds: Int, requireOP: Boolean = false)(action: => Unit) =
         registerAction(channel, seconds, requireOP, GenericAction(() => action))
 
     private def checkActionsList() = {
@@ -78,10 +78,10 @@ class Chanserv(ctl: Control) extends Module(ctl) with Auth with Commands {
         }
     }
 
-    private def registerAction(channel: String, seconds: Int, requireOP: Boolean, action: Action) =
+    private def registerAction(channel: Channel, seconds: Int, requireOP: Boolean, action: Action) =
         delayedActions += channel -> (delayedActions(channel) + DelayedAction(now + seconds, requireOP, action))
 
-    private def registerBan(channel: String, p: Prefix, seconds: Int, mute: Boolean): Boolean = {
+    private def registerBan(channel: Channel, p: Prefix, seconds: Int, mute: Boolean): Boolean = {
         // check that a ban is not already set
         val ob = delayedActions(channel).find{ case da @ DelayedAction(_, _, BanAction(bp, _)) => bp == p }
 
@@ -100,14 +100,14 @@ class Chanserv(ctl: Control) extends Module(ctl) with Auth with Commands {
         }
     }
 
-    def mute(channel: String, p: Prefix, duration: Duration) =
+    def mute(channel: Channel, p: Prefix, duration: Duration) =
         registerBan(channel, p, duration.toSeconds, true)
 
-    def ban(channel: String, p: Prefix, duration: Duration) =
+    def ban(channel: Channel, p: Prefix, duration: Duration) =
         registerBan(channel, p, duration.toSeconds, false)
 
     // "manual" unban
-    private def unban(channel: String, nick: String) = {
+    private def unban(channel: Channel, nick: Nick) = {
         val ob = delayedActions(channel).find{ case da @ DelayedAction(_, _, BanAction(p, _)) => p.nick == nick }
         ob match {
             case Some(unban) =>
@@ -122,23 +122,23 @@ class Chanserv(ctl: Control) extends Module(ctl) with Auth with Commands {
     }
 
 
-    def afterOP(channel: String, after: Duration = Now)(action: => Unit) =
+    def afterOP(channel: Channel, after: Duration = Now)(action: => Unit) =
         afterSeconds(channel, after.toSeconds, true)(() => action)
 
-    def op(channel: String) = {
+    def op(channel: Channel) = {
         if (!isOP(channel) && !isRequestingOP(channel)) {
             isRequestingOP += channel -> true
-            ctl.p.msg("chanserv", "OP "+channel)
+            ctl.p.msg(Nick.ChanServ, "OP "+channel)
         }
     }
 
-    def doAsOP(channel: String)(action: => Unit) = {
+    def doAsOP(channel: Channel)(action: => Unit) = {
         afterOP(channel)(action)
         op(channel)
     }
 
     override def reconnect = {
-        isOP           = Map[String, Boolean]().withDefaultValue(false)
-        isRequestingOP = Map[String, Boolean]().withDefaultValue(false)
-    };
+        isOP           = Map[Channel, Boolean]().withDefaultValue(false)
+        isRequestingOP = Map[Channel, Boolean]().withDefaultValue(false)
+    }
 }
