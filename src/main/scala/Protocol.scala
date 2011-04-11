@@ -26,7 +26,7 @@ object Prefix {
     }
 }
 
-trait AbsChannel {
+sealed trait AbsChannel {
     val name: String
 }
 
@@ -35,28 +35,28 @@ case class Nick(name: String) extends AbsChannel {
 }
 
 object Nick {
-    val ChanServ = Nick("chanserv")
-    val NickServ = Nick("nickserv")
+    val ChanServ = Nick("ChanServ")
+    val NickServ = Nick("NickServ")
 }
 case class Channel(name: String) extends AbsChannel
 
 
 /* Different messages types */
-abstract class Message;
-    case class Unknown(tokens: List[String]) extends Message
-    case class Error(code: Int, tokens: List[String]) extends Message
-    case class Numeric(code: Int, tokens: List[String]) extends Message
-    case class Msg(from: Prefix, to: AbsChannel, msg: String) extends Message
-    case class Mode(from: Prefix, channel: Channel, modes: String, user: String) extends Message
-    case class Invite(from: Prefix, channel: Channel) extends Message
-    case class Part(from: Prefix, channel: Channel) extends Message
-    case class Join(from: Prefix, channel: Channel) extends Message
-    case class Quit(from: Prefix) extends Message
-    case class NickChange(from: Prefix, newnick: String) extends Message
-    case class Ping(msg: String) extends Message
+sealed abstract class Message;
+final case class Unknown(tokens: List[String]) extends Message
+final case class Error(code: Int, tokens: List[String]) extends Message
+final case class Numeric(code: Int, tokens: List[String]) extends Message
+final case class Msg(from: Prefix, to: AbsChannel, msg: String) extends Message
+final case class Mode(from: Prefix, channel: Channel, modes: String, user: String) extends Message
+final case class Invite(from: Prefix, channel: Channel) extends Message
+final case class Part(from: Prefix, channel: Channel) extends Message
+final case class Join(from: Prefix, channel: Channel) extends Message
+final case class Quit(from: Prefix) extends Message
+final case class NickChange(from: Prefix, newnick: String) extends Message
+final case class Ping(msg: String) extends Message
+final case class Notice(from: Prefix, msg: String) extends Message
 
-    case object Notice extends Message
-    case object EOF extends Message
+final case object EOF extends Message
 
 class Protocol(ctl: Control) {
 
@@ -107,8 +107,13 @@ class Protocol(ctl: Control) {
         }
 
         val ret = params match {
-            case "NOTICE" :: xs =>
-                Notice
+            case "NOTICE" :: to :: msg :: Nil =>
+                prefix match {
+                    case Some(pr) =>
+                        Notice(pr, msg)
+                    case None =>
+                        Unknown(params)
+                }
             case "PING" :: arg :: Nil =>
                 Ping(arg)
             case "NICK" :: nick :: Nil =>

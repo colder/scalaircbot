@@ -2,7 +2,8 @@ package ircbot
 package modules
 
 import helpers.Auth
-import helpers.Commands
+
+import utils.Commands
 
 import scala.util.Random
 import scala.collection.mutable.HashMap

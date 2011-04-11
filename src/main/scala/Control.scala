@@ -92,7 +92,7 @@ class Control(val cfg: Config) extends Actor {
 
                     // Special message handling
                     msg match {
-                        case Notice if !registering && !registered =>
+                        case _: Notice if !registering && !registered =>
                             // First Notice => register
                             register(false)
                             registering = true
@@ -168,7 +168,6 @@ class Control(val cfg: Config) extends Actor {
         }
 
     }
-
 
     /* Start the connection Actor as well */
     override def start() = {

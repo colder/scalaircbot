@@ -31,6 +31,8 @@ class Trackers(ctl: Control) extends Module(ctl) {
 
             case NickChange(pr, newnick) =>
                 nickTrackers.foreach(_.userRenames(pr, Nick(newnick)))
+
+            case _ =>
         }
         true
     }

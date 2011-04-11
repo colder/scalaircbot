@@ -2,7 +2,6 @@ package ircbot
 package modules
 
 import helpers.Auth
-import helpers.Commands
 import utils._
 
 class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {

@@ -3,9 +3,14 @@ package utils
 
 import modules.NickTracker
 
+import scala.actors.Actor
+
+import InnerProtocol._
+
+
 case class Ident(val value: String)
 
-class Idents(ctl: Control) extends NickTracker {
+class Idents(ctl: Control) extends NickTracker with Commands {
     def now = System.currentTimeMillis
 
     val cacheTimeout = 24*60*60
@@ -28,7 +33,18 @@ class Idents(ctl: Control) extends NickTracker {
     }
 
     def request(nick: Nick) = {
-        None
+        implicit val ctl = this.ctl
+        execute[Ident] {
+            ctl.p.msg(Nick.NickServ, "INFO "+nick.name)
+        } onReply {
+            case Notice(Prefix(Nick.NickServ, _, _), msg) if (msg startsWith "Information on") && (msg contains nick.name) =>
+                msg.split("\\(account ").toList match {
+                    case _ :: acc :: Nil =>
+                        Some(Ident(acc.substring(0, acc.length-2)))
+                    case _ =>
+                        None
+                }
+        }
     }
 
     def rename(nickFrom: Nick, nickTo: Nick) = {

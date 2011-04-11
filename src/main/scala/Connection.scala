@@ -7,7 +7,11 @@ import scala.actors.Actor
 import scala.actors.OutputChannel
 import scala.actors.Actor._
 
+import scala.collection.mutable.Queue
+
 import utils.Logger
+
+import InnerProtocol._
 
 class Connection(host: String, port: Int, logger: Logger) extends Actor {
     val socket = new Socket()
@@ -18,7 +22,9 @@ class Connection(host: String, port: Int, logger: Logger) extends Actor {
     val timespan  = 5
     val threshold = 4
 
-    var listeners = Set[OutputChannel[Any]]();
+    type Listener = OutputChannel[Any]
+    var listeners = Set[Listener]();
+    var buffers   = Map[Listener, Queue[Option[String]]]().withDefaultValue(Queue())
 
     def init {
         val ia = InetAddress.getByName(host);
@@ -54,7 +60,6 @@ class Connection(host: String, port: Int, logger: Logger) extends Actor {
     def isFlooding = messages.filter{ _ > System.currentTimeMillis-timespan*1000 }.length >= threshold
 
     def act() {
-        import InnerProtocol._
 
         var continue = true;
 
@@ -64,10 +69,20 @@ class Connection(host: String, port: Int, logger: Logger) extends Actor {
                     listeners += sender
                 case StopListening =>
                     listeners -= sender
+                    buffers   -= sender
 
                 case ReadLine =>
-                    val line = readLine
-                    listeners.foreach(_ ! ReadLineAnswer(line))
+                    val line = if (buffers(sender).isEmpty) {
+                        val newline = readLine
+                        for (l <- listeners if l != sender) {
+                            buffers(l).enqueue(newline)
+                        }
+                        newline
+                    } else {
+                        buffers(sender).dequeue
+                    }
+
+                    sender ! ReadLineAnswer(line)
 
                 case WriteLine(line) => writeLine(line)
                 case ReinitConnection =>

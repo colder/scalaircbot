@@ -2,7 +2,8 @@ package ircbot
 package modules
 
 import helpers.Auth
-import helpers.Commands
+
+import utils.Commands
 
 class Factoids(ctl: Control) extends Module(ctl) with Auth with Commands {
     def handleMessage(msg: Message) = msg match {
