@@ -4,7 +4,7 @@ package modules
 import helpers.Auth
 import utils._
 
-class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
+class MonitorHashPHP(val ctl: Control) extends Module(ctl) with Auth with Commands {
     val channel = Channel("##php")
     val floodTimespan = 4
     val floodThreshold = 5

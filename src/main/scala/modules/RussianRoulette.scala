@@ -8,7 +8,7 @@ import utils.Commands
 import scala.util.Random
 import scala.collection.mutable.HashMap
 
-class RussianRoulette(ctl: Control) extends Module(ctl) with Auth with Commands {
+class RussianRoulette(val ctl: Control) extends Module(ctl) with Auth with Commands {
     val gun = new Random;
     val barils = new HashMap[Nick, Int]();
 

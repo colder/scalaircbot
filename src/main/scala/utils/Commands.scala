@@ -2,6 +2,7 @@ package ircbot
 package utils
 
 trait Commands {
+    val ctl: Control
 
     def words(str: String): List[String] = words(str, 0)
 
@@ -9,13 +10,13 @@ trait Commands {
         str.split("[:,. ]", limit).toList
 
 
-    class DoAndReply[T](body: => Unit)(implicit ctl: Control) {
+    class DoAndReply[T](body: => Unit) {
         import scala.actors.Actor
         import scala.actors.Actor._
 
         import InnerProtocol._
 
-        def onReply(pf: PartialFunction[Message, Option[T]])(implicit ms: Long = 5000): Option[T] = {
+        def onReply[T](pf: PartialFunction[Message, Option[T]])(implicit ms: Long = 5000): Option[T] = {
 
             var res: Option[T] = None;
 
@@ -66,8 +67,8 @@ trait Commands {
 
     }
 
-    def execute[T](body: => Unit)(implicit ctl: Control) = {
-        new DoAndReply[T](body)(ctl)
+    def execute(body: => Unit)= {
+        new DoAndReply(body)
     }
 
 }

@@ -5,7 +5,7 @@ import helpers.Auth
 
 import utils.Commands
 
-class Factoids(ctl: Control) extends Module(ctl) with Auth with Commands {
+class Factoids(val ctl: Control) extends Module(ctl) with Auth with Commands {
     def handleMessage(msg: Message) = msg match {
         case Msg(from, to: Channel, msg) =>
             // msg sent on channel

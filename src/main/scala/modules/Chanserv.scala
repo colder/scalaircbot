@@ -18,7 +18,7 @@ case class BanAction(p: Prefix, body: () => Unit) extends Action {
 
 case class DelayedAction(time: Long, requireOP: Boolean, action: Action);
 
-class Chanserv(ctl: Control) extends Module(ctl) with Auth with Commands {
+class Chanserv(val ctl: Control) extends Module(ctl) with Auth with Commands {
     var isOP           = Map[Channel, Boolean]().withDefaultValue(false)
     var isRequestingOP = Map[Channel, Boolean]().withDefaultValue(false)
     var delayedActions = Map[Channel, Set[DelayedAction]]().withDefaultValue(Set())

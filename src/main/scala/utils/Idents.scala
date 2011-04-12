@@ -10,7 +10,7 @@ import InnerProtocol._
 
 case class Ident(val value: String)
 
-class Idents(ctl: Control) extends NickTracker with Commands {
+class Idents(val ctl: Control) extends NickTracker with Commands {
     def now = System.currentTimeMillis
 
     val cacheTimeout = 24*60*60
@@ -33,8 +33,7 @@ class Idents(ctl: Control) extends NickTracker with Commands {
     }
 
     def request(nick: Nick) = {
-        implicit val ctl = this.ctl
-        execute[Ident] {
+        execute {
             ctl.p.msg(Nick.NickServ, "INFO "+nick.name)
         } onReply {
             case Notice(Prefix(Nick.NickServ, _, _), msg) if (msg startsWith "Information on") && (msg contains nick.name) =>
