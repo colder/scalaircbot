@@ -19,9 +19,6 @@ class Control(val cfg: Config) extends Actor {
     /* Database connection */
     var db: MysqlConnection = null
 
-    /* Mask Storage and Handling */
-    var maskStore: MaskStore = null
-
     /* Special chanserv module used to perform delayed OP Actions */
     var chanserv: modules.Chanserv = null
     var trackers: modules.Trackers = null
@@ -53,6 +50,7 @@ class Control(val cfg: Config) extends Actor {
         registerModule(new Protocol(this))
         registerModule(chanserv)
         registerModule(trackers)
+        registerModule(idents)
         registerModule(new Manager(this))
         registerModule(new MonitorHashPHP(this))
         registerModule(new RussianRoulette(this))
@@ -201,9 +199,6 @@ class Control(val cfg: Config) extends Actor {
 
             l.info("Connecting to Database...")
             db       = new MysqlConnection(cfg.dbHost, cfg.dbPort, cfg.dbDatabase, cfg.dbUser, cfg.dbPass)
-
-            l.info("Loading Mask Store...")
-            maskStore = new MaskStore(this)
 
             l.info("Loading ChanServ Module...")
             chanserv = new modules.Chanserv(this)

@@ -11,13 +11,17 @@ trait Commands {
 
 
     def requireAuth(prefix: Prefix, levels: UserLevel*)(body: => Unit) {
-        val user = new User(ctl, prefix)
-
-        if (levels.exists(_ == user.level)) {
+        if (isGranted(prefix, levels :_*)) {
             body
         } else {
             ctl.p.msg(prefix.nick, "Permission Denied")
         }
+    }
+
+    def isGranted(prefix: Prefix, levels: UserLevel*): Boolean = {
+        val user = new User(ctl, prefix)
+
+        levels.exists(_ == user.level)
     }
 
 
@@ -33,53 +37,43 @@ trait Commands {
     object Words4 extends ExWords(4)
 
     class DoAndReply[T](body: => Unit) {
-        import scala.actors.Actor
-        import scala.actors.Actor._
-
         import InnerProtocol._
 
         def onReply[T](pf: PartialFunction[Message, Option[T]])(implicit ms: Long = 5000): Option[T] = {
+            import scala.actors.Actor._
 
-            val actor = new Actor {
-                def act() = ()
+            var res: Option[T] = None
 
-                def run(): Option[T] = {
-                    var res: Option[T] = None
+            ctl.c ! StartListening
 
-                    ctl.c ! StartListening
+            body
 
-                    body
+            var continue = true
+            var ts = ms
 
-                    var continue = true
-                    var ts = ms
+            while(continue && ts > 0) {
+                val tinit = System.currentTimeMillis
 
-                    while(continue && ts > 0) {
-                        val tinit = System.currentTimeMillis
+                ctl.c ! ReadLine
+                receiveWithin(ts) {
+                    case ReadLineAnswer(line) =>
+                        val msg = ctl.p.parseLine(line)
 
-                        ctl.c ! ReadLine
-                        receiveWithin(ts) {
-                            case ReadLineAnswer(line) =>
-                                val msg = ctl.p.parseLine(line)
-
-                                if (pf isDefinedAt msg) {
-                                    pf(msg) match {
-                                        case Some(r) =>
-                                            res = Some(r)
-                                            continue = false
-                                        case None =>
-                                    }
-                                }
+                        if (pf isDefinedAt msg) {
+                            pf(msg) match {
+                                case Some(r) =>
+                                    res = Some(r)
+                                    continue = false
+                                case None =>
+                            }
                         }
-
-                        ts -= System.currentTimeMillis - tinit
-                    }
-
-                    ctl.c ! StopListening
-                    res
                 }
+
+                ts -= System.currentTimeMillis - tinit
             }
 
-            actor.run()
+            ctl.c ! StopListening
+            res
         }
 
     }

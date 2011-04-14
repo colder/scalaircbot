@@ -1,10 +1,9 @@
 package ircbot
 package modules
 
-import helpers.Auth
 import utils._
 
-class MonitorHashPHP(val ctl: Control) extends Module(ctl) with Auth with Commands {
+class MonitorHashPHP(val ctl: Control) extends Module(ctl) with Commands {
     val channel = Channel("##php")
     val floodTimespan = 4
     val floodThreshold = 5
@@ -35,7 +34,7 @@ class MonitorHashPHP(val ctl: Control) extends Module(ctl) with Auth with Comman
                 }
 
 
-                if (!isGranted(ctl, from, Normal, Manager, Administrator)) {
+                if (!isGranted(from, Normal, Manager, Administrator)) {
                     // checks that no nick sends more than <floodThreshold> msg per <floodTimespan> sec
                     addMessage(from.nick)
 
@@ -59,35 +58,29 @@ class MonitorHashPHP(val ctl: Control) extends Module(ctl) with Auth with Comman
             } else {
                 words(msg, 3) match {
                     case "!profanity" :: "add" :: word :: Nil =>
-                        if (isGranted(ctl, from, Manager, Administrator)) {
+                        requireAuth(from, Manager, Administrator) {
                             val updated = ctl.db.prepareStatement("INSERT INTO irc_profanity SET word = ?", word).executeUpdate
                             ctl.p.msg(from.nick, "Word '"+word+"' registered as profanity.")
-                        } else {
-                            ctl.p.msg(from.nick, "Permission denied.")
                         }
                         false
 
                     case "!profanity" :: "remove" :: word :: Nil =>
-                        if (isGranted(ctl, from, Manager, Administrator)) {
+                        requireAuth(from, Manager, Administrator) {
                             val upadted = ctl.db.prepareStatement("DELETE FROM irc_profanity WHERE word = ?", word).executeUpdate
                             if (upadted > 0) {
                                 ctl.p.msg(from.nick, "Word '"+word+"' removed as profanity.")
                             } else {
                                 ctl.p.msg(from.nick, "Word '"+word+"' not found.")
                             }
-                        } else {
-                            ctl.p.msg(from.nick, "Permission denied.")
                         }
                         false
 
                     case "!profanity" :: "list" :: Nil =>
-                        if (isGranted(ctl, from, Manager, Administrator)) {
+                        requireAuth(from, Manager, Administrator) {
                             val results = ctl.db.prepareStatement("SELECT DISTINCT word FROM irc_profanity").executeQuery
                             var l: List[String] = Nil;
                             for (r <- results) l = l ::: r.getString("word") :: Nil
                             ctl.p.msg(from.nick, "List: "+l.mkString(", "))
-                        } else {
-                            ctl.p.msg(from.nick, "Permission denied.")
                         }
                         false
                     case _ => true

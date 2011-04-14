@@ -1,8 +1,6 @@
 package ircbot
 package modules
 
-import helpers.{Auth}
-
 import utils._
 
 abstract class Action {
@@ -18,7 +16,7 @@ case class BanAction(p: Prefix, body: () => Unit) extends Action {
 
 case class DelayedAction(time: Long, requireOP: Boolean, action: Action);
 
-class Chanserv(val ctl: Control) extends Module(ctl) with Auth with Commands {
+class Chanserv(val ctl: Control) extends Module(ctl) with Commands {
     var isOP           = Map[Channel, Boolean]().withDefaultValue(false)
     var isRequestingOP = Map[Channel, Boolean]().withDefaultValue(false)
     var delayedActions = Map[Channel, Set[DelayedAction]]().withDefaultValue(Set())
@@ -36,14 +34,12 @@ class Chanserv(val ctl: Control) extends Module(ctl) with Auth with Commands {
             case Msg(from, to, msg) =>
                 words(msg, 3) match {
                     case "!unban" :: channel :: nick :: Nil =>
-                        if (isGranted(ctl, from, Manager, Administrator)) {
+                        requireAuth(from, Manager, Administrator) {
                             if (unban(Channel(channel), Nick(nick))) {
                                 ctl.p.msg(from.nick, "Nick "+nick+" unbanned form channel "+channel+".")
                             } else {
                                 ctl.p.msg(from.nick, "Nick "+nick+" not currently banned in channel "+channel+".")
                             }
-                        } else {
-                            ctl.p.msg(from.nick, "Permission denied.")
                         }
                         passThrough = false
                     case _ =>

@@ -24,16 +24,13 @@ object Normal extends UserLevel
 object Administrator extends UserLevel
 object Manager extends UserLevel
 
-class User(ctl: Control, val username: String, val hostname: String) {
+class User(ctl: Control, val nick: Nick) {
     def this(ctl: Control, prefix: Prefix) = {
-        this(ctl, prefix.username, prefix.hostname)
+        this(ctl, prefix.nick)
     }
 
-    val (mask, level) = ctl.maskStore.get(username, hostname);
-
-    def setLevel(level: UserLevel) = {
-        ctl.db.prepareStatement("UPDATE irc_users SET level = ? WHERE mask = ?", level.toString, mask).executeUpdate
-    }
+    val ident = ctl.idents.getIdent(nick)
+    val level = ctl.idents.getAuth(nick)
 }
 
 

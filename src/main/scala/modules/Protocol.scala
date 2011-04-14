@@ -1,15 +1,15 @@
 package ircbot
 package modules
 
-import helpers.Auth
+import utils._
 
-class Protocol(ctl: Control) extends Module(ctl) with Auth {
+class Protocol(val ctl: Control) extends Module(ctl) with Commands {
     def handleMessage(msg: Message) = msg match {
         case Msg(from, to, m) if from.nick == "freenode-connect" =>
             // ignore VERSION messages from freenode-connect
             false
         case Invite(from, chan) =>
-            if (isGranted(ctl, from, Manager)) ctl.p.join(chan)
+            if (isGranted(from, Manager)) ctl.p.join(chan)
             false
         case Ping(msg) =>
             ctl.p.pong(msg)

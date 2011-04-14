@@ -1,14 +1,12 @@
 package ircbot
 package modules
 
-import helpers.Auth
-
 import utils.Commands
 
 import scala.util.Random
 import scala.collection.mutable.HashMap
 
-class RussianRoulette(val ctl: Control) extends Module(ctl) with Auth with Commands {
+class RussianRoulette(val ctl: Control) extends Module(ctl) with Commands {
     val gun = new Random;
     val barils = new HashMap[Nick, Int]();
 
@@ -18,7 +16,7 @@ class RussianRoulette(val ctl: Control) extends Module(ctl) with Auth with Comma
             words(msg, 2) match {
                 case "!RR" :: nickname :: Nil =>
                     val nick = Nick(nickname)
-                    if (isGranted(ctl, from, Manager, Administrator)) {
+                    if (isGranted(from, Manager, Administrator)) {
                         ctl.p.msg(to, nickname+" has been volunteered to play russian roulette! Roll...");
                         Thread.sleep(2000);
                         if (gun.nextInt(getBaril(nick)) == 0) {

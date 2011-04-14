@@ -2,13 +2,13 @@ package ircbot
 package modules
 
 import helpers.Http
-import helpers.Auth
+import utils._
 
-class Yahoo(ctl: Control) extends Module(ctl) with Http with Auth {
+class Yahoo(val ctl: Control) extends Module(ctl) with Commands with Http {
     def handleMessage(msg: Message) = msg match {
         case Msg(from, to, msg) if msg startsWith "!web " => {
 
-            if (isGranted(ctl, from, Normal, Manager, Administrator)) {
+            if (isGranted(from, Normal, Manager, Administrator)) {
                 val dest = to match {
                     case Channel(name) => to
                     case _ => from.nick
