@@ -8,9 +8,6 @@ class Manager(ctl: Control) extends Module(ctl) with Auth {
         msg match {
             case Msg(prefix, to: Channel, msg) =>
                 msg.split(" ", 3).toList match {
-                    case "!ident" :: nick :: Nil =>
-                        println(ctl.idents.request(Nick(nick)))
-                        false
                     case "!masks" :: "reload" :: Nil =>
                         if (isGranted(ctl, prefix, Manager)) {
                             ctl.maskStore.reload
