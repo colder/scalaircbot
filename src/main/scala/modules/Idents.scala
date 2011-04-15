@@ -61,7 +61,7 @@ class Idents(val ctl: Control) extends Module(ctl) with NickTracker with Command
 
             results.foreach { row =>
                 val level = row.getString("level") match {
-                    case "normal" => Regular
+                    case "regular" => Regular
                     case "administrator" => Administrator
                     case "manager" => Manager
                     case _ => Guest
