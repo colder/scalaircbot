@@ -101,7 +101,7 @@ class Idents(val ctl: Control) extends Module(ctl) with NickTracker with Command
         execute {
             ctl.p.msg(Nick.NickServ, "INFO "+nick.name)
         } onReply {
-            case Notice(Prefix(Nick.NickServ, _, _), msg) if (msg startsWith "Information on") && (msg contains nick.name) =>
+            case Notice(Prefix(Nick.NickServ, _, _), msg) if (msg startsWith "Information on") && (msg.toLowerCase contains nick.name.toLowerCase) =>
                 msg.split("\\(account ").toList match {
                     case _ :: acc :: Nil =>
                         Some(Ident(acc.substring(0, acc.length-2).trim))
