@@ -26,29 +26,33 @@ class MonitorHashPHP(val ctl: Control) extends Module(ctl) with Commands {
                 // Check for profanity
                 if (isProfanity(msg)) {
                     addProfanity(from.nick, msg)
-                    if (isAbusingProfanity(from.nick)) {
-                        mute(from, Minutes(30), "to prevent profanity abuse")
-                    } else {
-                        ctl.p.msg(from.nick, "Please keep the profanity out of "+channel+", thanks.")
+                    if (!isGranted(from, Manager, Administrator)) {
+                        if (isAbusingProfanity(from.nick)) {
+                            mute(from, Minutes(30), "to prevent profanity abuse")
+                        } else {
+                            ctl.p.msg(from.nick, "Please keep the profanity out of "+channel+", thanks.")
+                        }
                     }
                 }
 
 
-                if (!isGranted(from, Normal, Manager, Administrator)) {
-                    // checks that no nick sends more than <floodThreshold> msg per <floodTimespan> sec
-                    addMessage(from.nick)
+                // checks that no nick sends more than <floodThreshold> msg per <floodTimespan> sec
+                addMessage(from.nick)
 
-                    if (isFlooding(from.nick)) {
+                if (isFlooding(from.nick)) {
+                    if (!isGranted(from, Normal, Manager, Administrator)) {
                         mute(from, Minutes(5), "to prevent them from flooding the channel more")
-                        messages -= from.nick
-                    } else {
-                        // check that messages are of decent length
-                        addShortMessage(from.nick, msg)
+                    }
+                    messages -= from.nick
+                } else {
+                    // check that messages are of decent length
+                    addShortMessage(from.nick, msg)
 
-                        if (isAbusingEnter(from.nick)) {
+                    if (isAbusingEnter(from.nick)) {
+                        if (!isGranted(from, Normal, Manager, Administrator)) {
                             ctl.p.msg(from.nick, "Please stop using your enter key as punctuation, thanks.")
-                            shortMessages -= from.nick
                         }
+                        shortMessages -= from.nick
                     }
                 }
 

@@ -6,7 +6,7 @@ import utils.Commands
 class Manager(val ctl: Control) extends Module(ctl) with Commands {
     def handleMessage(msg: Message) = {
         msg match {
-            case Msg(prefix, to: Channel, msg) =>
+            case Msg(prefix, to: Nick, msg) =>
                 msg.split(" ", 3).toList match {
                     case "!idents" :: "clear" :: Nil =>
                         requireAuth(prefix, Manager) {
