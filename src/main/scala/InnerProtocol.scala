@@ -8,9 +8,6 @@ object InnerProtocol {
     object StartListening
     object StopListening
 
-    object FutureRead
-    object FutureReply
-
     // Write a line to the server
     case class WriteLine(line: String);
     // Response from the server
