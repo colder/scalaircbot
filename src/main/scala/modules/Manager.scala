@@ -56,7 +56,7 @@ class Manager(val ctl: Control) extends Module(ctl) with Commands {
                         val help = ctl.idents.getAuth(prefix.nick) match {
                             case Manager =>
                                 "!idents, !grant <account> <access>, !revoke <account>, !join <c>, !part <c>, !def <f> = <d>, !search <f>, !undef <f>"
-                            case Administrator | Normal =>
+                            case Administrator | Regular =>
                                 "!search <fact>, !def <f> = <d>, !undef <f>"
                             case Guest =>
                                 "Simply msg the bot privately with a factoid handle and he will answer the factoid content"

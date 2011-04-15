@@ -8,13 +8,13 @@ class Factoids(val ctl: Control) extends Module(ctl) with Commands {
         case Msg(from, to: Channel, msg) =>
             // msg sent on channel
             if (msg.startsWith("!+")) {
-                if (isGranted(from, Normal, Manager, Administrator)) {
+                if (isGranted(from, Regular, Manager, Administrator)) {
                     sendFact(to, msg.substring(2), false)
                 } else {
                     ctl.p.msg(from.nick, "This public command can only be used by regulars. You can simply msg me: /msg php-bot "+msg.substring(2))
                 }
             } else if (msg.startsWith("!?")) {
-                if (isGranted(from, Normal, Manager, Administrator)) {
+                if (isGranted(from, Regular, Manager, Administrator)) {
                     searchFacts(from, to, msg.substring(2))
                 } else {
                     ctl.p.msg(from.nick, "This public command can only be used by regulars.")
@@ -29,7 +29,7 @@ class Factoids(val ctl: Control) extends Module(ctl) with Commands {
             } else {
                 msg.split("[:,] ?!\\+", 2).toList match {
                     case nick :: fact :: Nil =>
-                        if (isGranted(from, Normal, Manager, Administrator)) {
+                        if (isGranted(from, Regular, Manager, Administrator)) {
                             lookup(fact) match {
                                 case Some(x) => ctl.p.msg(to, nick+", "+x);
                                 case None =>
@@ -49,18 +49,18 @@ class Factoids(val ctl: Control) extends Module(ctl) with Commands {
                 words(msg, 2) match {
                     case "!def" :: rest :: Nil => rest.split("=", 2).toList match {
                         case fact :: description :: Nil => 
-                            requireAuth(from, Normal, Manager, Administrator) {
+                            requireAuth(from, Regular, Manager, Administrator) {
                                 defineFact(from, fact.trim, description.trim)
                             }
                         case _ =>
                             ctl.p.msg(from.nick, "?")
                     }
                     case "!undef" :: fact :: Nil =>
-                        requireAuth(from, Normal, Manager, Administrator) {
+                        requireAuth(from, Regular, Manager, Administrator) {
                             undefineFact(from, fact)
                         }
                     case "!search" :: fact :: Nil =>
-                        requireAuth(from, Normal, Manager, Administrator) {
+                        requireAuth(from, Regular, Manager, Administrator) {
                             searchFacts(from, from.nick, fact)
                         }
                     case _ =>

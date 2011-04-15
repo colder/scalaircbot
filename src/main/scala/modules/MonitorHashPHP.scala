@@ -40,7 +40,7 @@ class MonitorHashPHP(val ctl: Control) extends Module(ctl) with Commands {
                 addMessage(from.nick)
 
                 if (isFlooding(from.nick)) {
-                    if (!isGranted(from, Normal, Manager, Administrator)) {
+                    if (!isGranted(from, Regular, Manager, Administrator)) {
                         mute(from, Minutes(5), "to prevent them from flooding the channel more")
                     }
                     messages -= from.nick
@@ -49,7 +49,7 @@ class MonitorHashPHP(val ctl: Control) extends Module(ctl) with Commands {
                     addShortMessage(from.nick, msg)
 
                     if (isAbusingEnter(from.nick)) {
-                        if (!isGranted(from, Normal, Manager, Administrator)) {
+                        if (!isGranted(from, Regular, Manager, Administrator)) {
                             ctl.p.msg(from.nick, "Please stop using your enter key as punctuation, thanks.")
                         }
                         shortMessages -= from.nick

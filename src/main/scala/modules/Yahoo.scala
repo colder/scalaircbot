@@ -8,7 +8,7 @@ class Yahoo(val ctl: Control) extends Module(ctl) with Commands with Http {
     def handleMessage(msg: Message) = msg match {
         case Msg(from, to, msg) if msg startsWith "!web " => {
 
-            if (isGranted(from, Normal, Manager, Administrator)) {
+            if (isGranted(from, Regular, Manager, Administrator)) {
                 val dest = to match {
                     case Channel(name) => to
                     case _ => from.nick

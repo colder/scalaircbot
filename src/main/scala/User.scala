@@ -4,7 +4,7 @@ package ircbot
 abstract class UserLevel {
     override def toString = this match {
         case Guest => "guest"
-        case Normal => "normal"
+        case Regular => "regular"
         case Administrator => "administrator"
         case Manager => "manager"
     }
@@ -12,7 +12,7 @@ abstract class UserLevel {
 
 object UserLevel {
     def fromString(str: String) = str.toLowerCase match {
-        case "normal" => Normal
+        case "regular" => Regular
         case "administrator" => Administrator
         case "manager" => Manager
         case _ => Guest
@@ -20,7 +20,7 @@ object UserLevel {
 }
 
 object Guest extends UserLevel
-object Normal extends UserLevel
+object Regular extends UserLevel
 object Administrator extends UserLevel
 object Manager extends UserLevel
 
