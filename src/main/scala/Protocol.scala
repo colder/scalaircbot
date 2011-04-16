@@ -212,19 +212,19 @@ class Protocol(ctl: Control) {
         ctl.writeLine("INVITE "+nick+" "+channel.name)
 
     def kick(channel: Channel, nick: Nick) =
-        ctl.writeLine("KICK "+channel.name+" "+nick)
+        ctl.writeLine("KICK "+channel.name+" "+nick.name)
 
     def mode(channel: Channel, mode: String, nick: Nick) =
-        ctl.writeLine("MODE "+channel.name+" "+mode+" "+nick)
+        ctl.writeLine("MODE "+channel.name+" "+mode+" "+nick.name)
 
     def mode(channel: Channel, mode: String, nick: String) =
         ctl.writeLine("MODE "+channel.name+" "+mode+" "+nick)
 
     def op(channel: Channel, nick: Nick) =
-        mode(channel, "+o", nick)
+        mode(channel, "+o", nick.name)
 
     def deop(channel: Channel, nick: Nick) =
-        mode(channel, "-o", nick)
+        mode(channel, "-o", nick.name)
 
     def ban(channel: Channel, mask: String) =
         mode(channel, "+b", mask)
@@ -239,7 +239,7 @@ class Protocol(ctl: Control) {
         mode(channel, "-q", mask)
 
     def kick(channel: Channel, nick: Nick, reason: String) =
-        ctl.writeLine("KICK "+channel+" "+nick+" :"+reason)
+        ctl.writeLine("KICK "+channel+" "+nick.name+" :"+reason)
 
     def msg(to: AbsChannel, msg: String) = {
         val msgl = if (msg.length > 450) msg.substring(0, 445)+"..." else msg

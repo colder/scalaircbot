@@ -126,7 +126,7 @@ class Chanserv(val ctl: Control) extends Module(ctl) with Commands {
     def op(channel: Channel) = {
         if (!isOP(channel) && !isRequestingOP(channel)) {
             isRequestingOP += channel -> true
-            ctl.p.msg(Nick.ChanServ, "OP "+channel)
+            ctl.p.msg(Nick.ChanServ, "OP "+channel.name)
         }
     }
 
