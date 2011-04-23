@@ -81,9 +81,9 @@ class Chanserv(val ctl: Control) extends Module(ctl) with Commands {
 
     private def registerBan(channel: Channel, p: Prefix, seconds: Int, mute: Boolean): Boolean = {
         // check that a ban is not already set
-        val ob = delayedActions(channel).contains{ case da @ DelayedAction(_, _, BanAction(bp, _)) => bp == p }
+        val ob = delayedActions(channel).find{ case da @ DelayedAction(_, _, BanAction(bp, _)) => bp == p }
 
-        if (!ob) {
+        if (ob.isEmpty) {
             if (mute) {
                 registerAction(channel, 0,       true, BanAction(p, () => ctl.p.mute(channel, p.nickMask)))
                 registerAction(channel, seconds, true, BanAction(p, () => ctl.p.unmute(channel, p.nickMask)))
