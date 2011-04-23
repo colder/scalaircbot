@@ -17,16 +17,16 @@ case class BanAction(p: Prefix, body: () => Unit) extends Action {
 case class DelayedAction(time: Long, requireOP: Boolean, action: Action);
 
 class Chanserv(val ctl: Control) extends Module(ctl) with Commands {
-    var isOP           = Map[Channel, Boolean]().withDefaultValue(false)
-    var isRequestingOP = Map[Channel, Boolean]().withDefaultValue(false)
+    var isOP           = Set[Channel]()
+    var isRequestingOP = Set[Channel]()
     var delayedActions = Map[Channel, Set[DelayedAction]]().withDefaultValue(Set())
 
     def handleMessage(msg: Message) = {
         var passThrough = true
         msg match {
-            case Mode(prefix, channel, modes, user) if user == ctl.cfg.authNick =>
+            case Mode(prefix, channel, modes, user) if user == ctl.cfg.authNick.name =>
                 if (modes contains "+o") {
-                    isOP           += (channel -> true)
+                    isOP           += channel
                     isRequestingOP -= channel
                 } else if (modes contains "-o") {
                     isOP           -= channel
@@ -81,9 +81,9 @@ class Chanserv(val ctl: Control) extends Module(ctl) with Commands {
 
     private def registerBan(channel: Channel, p: Prefix, seconds: Int, mute: Boolean): Boolean = {
         // check that a ban is not already set
-        val ob = delayedActions(channel).find{ case da @ DelayedAction(_, _, BanAction(bp, _)) => bp == p }
+        val ob = delayedActions(channel).contains{ case da @ DelayedAction(_, _, BanAction(bp, _)) => bp == p }
 
-        if (ob.isEmpty) {
+        if (!ob) {
             if (mute) {
                 registerAction(channel, 0,       true, BanAction(p, () => ctl.p.mute(channel, p.nickMask)))
                 registerAction(channel, seconds, true, BanAction(p, () => ctl.p.unmute(channel, p.nickMask)))
@@ -125,7 +125,7 @@ class Chanserv(val ctl: Control) extends Module(ctl) with Commands {
 
     def op(channel: Channel) = {
         if (!isOP(channel) && !isRequestingOP(channel)) {
-            isRequestingOP += channel -> true
+            isRequestingOP += channel
             ctl.p.msg(Nick.ChanServ, "OP "+channel.name)
         }
     }
@@ -136,7 +136,7 @@ class Chanserv(val ctl: Control) extends Module(ctl) with Commands {
     }
 
     override def reconnect = {
-        isOP           = Map[Channel, Boolean]().withDefaultValue(false)
-        isRequestingOP = Map[Channel, Boolean]().withDefaultValue(false)
+        isOP           = Set[Channel]()
+        isRequestingOP = Set[Channel]()
     }
 }
