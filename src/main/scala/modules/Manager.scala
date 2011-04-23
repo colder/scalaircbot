@@ -36,7 +36,7 @@ class Manager(val ctl: Control) extends Module(ctl) with Commands {
                         false
                     case "!revoke" :: to :: Nil =>
                         requireAuth(prefix, Manager) {
-                            ctl.p.msg(prefix.nick, "Permission denied.")
+                            revokeAccess(prefix, to)
                         }
                         false
                     case "!join" :: chan :: Nil =>
