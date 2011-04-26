@@ -94,7 +94,7 @@ class Factoids(val ctl: Control) extends Module(ctl) with Commands {
     }
     def defineFact(from: Prefix, pattern: String, description: String) {
         try {
-            val stmt = ctl.db.prepareStatement("REPLACE irc_factoids SET description = ?, date_lastedit = NOW(), hits = 0, token = ?", description, pattern)
+            val stmt = ctl.db.prepareStatement("REPLACE irc_factoids SET description = ?, date_lastedit = NOW(), hits = 0, token = ?, id_user=0", description, pattern)
 
             if (stmt.executeUpdate > 0) {
                 ctl.p.msg(from.nick, "Factoid "+pattern+" updated")
