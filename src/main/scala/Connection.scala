@@ -24,8 +24,6 @@ class Connection(host: String, port: Int, logger: Logger) extends Actor {
 
     type Listener = OutputChannel[Any]
     var listeners = Set[Listener]()
-    var buffers   = Map[Listener, Queue[Option[String]]]().withDefaultValue(Queue())
-    var reading   = Set[Listener]()
 
     def init {
         val ia = InetAddress.getByName(host);
@@ -70,23 +68,17 @@ class Connection(host: String, port: Int, logger: Logger) extends Actor {
               // Read lines from the connection, if any
               while (in.ready()) {
                   val newline = readLine
+
+                  // Dispatch to readers
                   for (l <- listeners) {
-                      buffers(l).enqueue(newline)
+                      l ! ReadLine(newline)
                   }
-              }
-
-
-              val readingQueue = reading.toSeq
-              for (r <- readingQueue) {
-                if (!buffers(r).isEmpty) {
-                  r ! ReadLineAnswer(buffers(r).dequeue)
-                  reading -= r
-                }
               }
             }
 
 
-            receiveWithin(1000) {
+            // Handles commands
+            receiveWithin(200) {
                 case InitConnection =>
                     init
                     opened = true
@@ -94,14 +86,6 @@ class Connection(host: String, port: Int, logger: Logger) extends Actor {
                     listeners += sender
                 case StopListening =>
                     listeners -= sender
-                    buffers   -= sender
-
-                case ReadLine =>
-                    if (reading(sender)) {
-                      logger.err("Received ReadLine from an actor already reading: "+sender)
-                    } else {
-                      reading += sender;
-                    }
 
                 case WriteLine(line) =>
                     writeLine(line)

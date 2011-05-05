@@ -43,42 +43,48 @@ trait Commands {
             import scala.actors.Actor._
             import scala.actors.TIMEOUT
 
-            var res: Option[T] = None
+            val a = actor {
+              receive {
+                case _ => {
+                  var res: Option[T] = None
+                  ctl.c ! StartListening
 
-            ctl.c ! StartListening
+                  body
 
-            body
+                  var continue = true
+                  var ts = ms
 
-            var continue = true
-            var ts = ms
+                  while(continue && ts > 0) {
+                      val tinit = System.currentTimeMillis
 
-            while(continue && ts > 0) {
-                val tinit = System.currentTimeMillis
+                      receiveWithin(ts) {
+                        case ReadLine(line) =>
+                          val msg = ctl.p.parseLine(line)
 
-                ctl.c ! ReadLine
-                receiveWithin(ts) {
-                    case ReadLineAnswer(line) =>
-                        val msg = ctl.p.parseLine(line)
-
-                        if (pf isDefinedAt msg) {
+                          if (pf isDefinedAt msg) {
                             pf(msg) match {
-                                case Some(r) =>
-                                    res = Some(r)
-                                    continue = false
-                                case None =>
+                              case Some(r) =>
+                                res = Some(r)
+                                continue = false
+                              case None =>
                             }
-                        }
-		    case TIMEOUT =>
-		    	continue = false
-                }
+                          }
+                        case TIMEOUT =>
+                          continue = false
+                      }
 
-                ts -= System.currentTimeMillis - tinit
+                      ts -= System.currentTimeMillis - tinit
+                  }
+
+                  ctl.c ! StopListening
+
+                  sender ! res
+                }
+              }
             }
 
-            ctl.c ! StopListening
-            res
+            (a !? "go").asInstanceOf[Option[T]]
         }
-
     }
 
     def execute(body: => Unit)= {

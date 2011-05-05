@@ -84,9 +84,8 @@ class Control(val cfg: Config) extends Actor {
 
         while(continue) {
 
-            c ! ReadLine
             receive {
-                case ReadLineAnswer(line) =>
+                case ReadLine(line) =>
                     lastMessage = System.currentTimeMillis/1000
 
                     val msg = p.parseLine(line)
