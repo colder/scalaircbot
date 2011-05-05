@@ -80,7 +80,10 @@ class Control(val cfg: Config) extends Actor {
         var registered  = false
 
         c ! StartListening
+        c ! InitConnection
+
         while(continue) {
+
             c ! ReadLine
             receive {
                 case ReadLineAnswer(line) =>
@@ -128,10 +131,12 @@ class Control(val cfg: Config) extends Actor {
 
                     try {
                         connected = false;
-                        c ! ReinitConnection
+                        c ! CloseConnection
                         l.info("Connecting to IRC server...")
                         c = new Connection(cfg.hostHost, cfg.hostPort, l)
                         c.start
+                        c ! StartListening
+                        c ! InitConnection
                         reconnectModules
                         connected = true
                     } catch {

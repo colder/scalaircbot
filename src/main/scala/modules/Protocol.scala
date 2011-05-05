@@ -12,6 +12,7 @@ class Protocol(val ctl: Control) extends Module(ctl) with Commands {
             if (isGranted(from, Manager)) ctl.p.join(chan)
             false
         case Ping(msg) =>
+	    ctl.l.info("Asking for writeline: ")
             ctl.p.pong(msg)
             false
         case _ => true

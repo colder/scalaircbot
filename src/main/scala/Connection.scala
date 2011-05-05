@@ -23,8 +23,9 @@ class Connection(host: String, port: Int, logger: Logger) extends Actor {
     val threshold = 4
 
     type Listener = OutputChannel[Any]
-    var listeners = Set[Listener]();
+    var listeners = Set[Listener]()
     var buffers   = Map[Listener, Queue[Option[String]]]().withDefaultValue(Queue())
+    var reading   = Set[Listener]()
 
     def init {
         val ia = InetAddress.getByName(host);
@@ -62,9 +63,33 @@ class Connection(host: String, port: Int, logger: Logger) extends Actor {
     def act() {
 
         var continue = true;
+        var opened   = false;
 
         while (continue) {
-            receive {
+            if (opened) {
+              // Read lines from the connection, if any
+              while (in.ready()) {
+                  val newline = readLine
+                  for (l <- listeners) {
+                      buffers(l).enqueue(newline)
+                  }
+              }
+
+
+              val readingQueue = reading.toSeq
+              for (r <- readingQueue) {
+                if (!buffers(r).isEmpty) {
+                  r ! ReadLineAnswer(buffers(r).dequeue)
+                  reading -= r
+                }
+              }
+            }
+
+
+            receiveWithin(1000) {
+                case InitConnection =>
+                    init
+                    opened = true
                 case StartListening =>
                     listeners += sender
                 case StopListening =>
@@ -72,28 +97,23 @@ class Connection(host: String, port: Int, logger: Logger) extends Actor {
                     buffers   -= sender
 
                 case ReadLine =>
-                    val line = if (buffers(sender).isEmpty) {
-                        val newline = readLine
-                        for (l <- listeners if l != sender) {
-                            buffers(l).enqueue(newline)
-                        }
-                        newline
+                    if (reading(sender)) {
+                      logger.err("Received ReadLine from an actor already reading: "+sender)
                     } else {
-                        buffers(sender).dequeue
+                      reading += sender;
                     }
 
-                    sender ! ReadLineAnswer(line)
+                case WriteLine(line) =>
+                    writeLine(line)
 
-                case WriteLine(line) => writeLine(line)
-                case ReinitConnection =>
+                case CloseConnection =>
                     /* Shut the connection down */
                     out.close
                     in.close
                     socket.close
                     continue = false
+                case _ =>
             }
         }
     }
-
-    init
 }

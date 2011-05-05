@@ -12,7 +12,11 @@ object InnerProtocol {
     case class WriteLine(line: String);
     // Response from the server
     case class ReadLineAnswer(line: Option[String]);
-    // Reconnect to the server
+    // Connect to the server
+    case object InitConnection;
+    // Close the connection to the server
+    case object CloseConnection;
+    // Reinit the connection to the server
     case object ReinitConnection;
     // Reconnect to the server
     case object StopChecker;
