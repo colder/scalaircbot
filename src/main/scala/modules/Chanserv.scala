@@ -33,12 +33,12 @@ class Chanserv(val ctl: Control) extends Module(ctl) with Commands {
                 }
             case Msg(from, to, msg) =>
                 words(msg, 3) match {
-                    case "!unban" :: channel :: nick :: Nil =>
+                    case "!unban" :: channel :: ident :: Nil =>
                         requireAuth(from, Manager, Administrator) {
-                            if (unban(Channel(channel), Nick(nick))) {
-                                ctl.p.msg(from.nick, "Nick "+nick+" unbanned form channel "+channel+".")
+                            if (unban(Channel(channel), Ident(ident))) {
+                                ctl.p.msg(from.nick, "Ident "+ident+" unbanned form channel "+channel+".")
                             } else {
-                                ctl.p.msg(from.nick, "Nick "+nick+" not currently banned in channel "+channel+".")
+                                ctl.p.msg(from.nick, "Ident "+ident+" not currently banned in channel "+channel+".")
                             }
                         }
                         passThrough = false
@@ -83,13 +83,15 @@ class Chanserv(val ctl: Control) extends Module(ctl) with Commands {
         // check that a ban is not already set
         val ob = delayedActions(channel).find{ case da @ DelayedAction(_, _, BanAction(bp, _)) => bp == p }
 
-        if (ob.isEmpty) {
+        val ident = ctl.idents.getIdent(p.nick)
+
+        if (ob.isEmpty && !ident.isEmpty) {
             if (mute) {
-                registerAction(channel, 0,       true, BanAction(p, () => ctl.p.mute(channel, p.nickMask)))
-                registerAction(channel, seconds, true, BanAction(p, () => ctl.p.unmute(channel, p.nickMask)))
+                registerAction(channel, 0,       true, BanAction(p, () => ctl.p.mute(channel, ident.get.toMask)))
+                registerAction(channel, seconds, true, BanAction(p, () => ctl.p.unmute(channel, ident.get.toMask)))
             } else {
-                registerAction(channel, 0,       true, BanAction(p, () => ctl.p.ban(channel, p.nickMask)))
-                registerAction(channel, seconds, true, BanAction(p, () => ctl.p.unban(channel, p.nickMask)))
+                registerAction(channel, 0,       true, BanAction(p, () => ctl.p.ban(channel, ident.get.toMask)))
+                registerAction(channel, seconds, true, BanAction(p, () => ctl.p.unban(channel, ident.get.toMask)))
             }
             op(channel)
             true
@@ -105,8 +107,8 @@ class Chanserv(val ctl: Control) extends Module(ctl) with Commands {
         registerBan(channel, p, duration.toSeconds, false)
 
     // "manual" unban
-    private def unban(channel: Channel, nick: Nick) = {
-        val ob = delayedActions(channel).find{ case da @ DelayedAction(_, _, BanAction(p, _)) => p.nick == nick }
+    private def unban(channel: Channel, ident: Ident) = {
+        val ob = delayedActions(channel).find{ case da @ DelayedAction(_, _, BanAction(p, _)) => ctl.idents.getIdent(p.nick) == Some(ident) }
         ob match {
             case Some(unban) =>
                 // found the unban operation, promote it to now
