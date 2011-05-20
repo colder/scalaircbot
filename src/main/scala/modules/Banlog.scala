@@ -29,7 +29,16 @@ case class BanLogEntry(id: Int = 0, banner: Ident, banned: Ident, tpe: BanType, 
     expectedDateEnd.before(new Date())
   }
 
-  lazy val explainString = "["+tpe+"] at "+Helpers.dateAsString(dateStart)+" by "+banner.value+" until "+Helpers.dateAsString(dateEnd.getOrElse(expectedDateEnd)) +" Reason: "+reason
+  lazy val explainString = {
+    val end = dateEnd match {
+      case Some(de) =>
+        Helpers.dateAsString(de)+"     "
+      case None =>
+        Helpers.dateAsString(expectedDateEnd)+" (exp)"
+    }
+
+    "["+(if (tpe == Mute) "mute" else "ban ")+"] at "+Helpers.dateAsString(dateStart)+" by "+banner.value+" until "+end +". Reason: "+reason
+  }
 }
 
 class BanLog(val ctl: Control) extends Module(ctl) with Commands {
@@ -180,7 +189,7 @@ class BanLog(val ctl: Control) extends Module(ctl) with Commands {
 
         storeBanEntry(newBanEntry)
 
-        optmsg("Ban for account "+identbanned.value+" in place for "+duration+", and logged.")
+        optmsg(newBanEntry.tpe.toString.capitalize+" for account "+identbanned.value+" in place for "+duration+", and logged.")
 
       case (None, _) =>
         optmsg("Could not find any ident associated with "+who)
@@ -246,9 +255,9 @@ class BanLog(val ctl: Control) extends Module(ctl) with Commands {
 
       banLog -= be
 
-      be.copy(dateEnd = Some(new Date()))
+      val newBE = be.copy(dateEnd = Some(new Date()))
 
-      storeBanEntry(be)
+      storeBanEntry(newBE)
     }
   }
 

@@ -3,26 +3,12 @@ package modules
 
 import utils._
 
-abstract class Action {
-    def execute
-}
-case class GenericAction(body: () => Unit) extends Action {
-    def execute = body()
-}
-
-case class BanAction(p: Prefix, body: () => Unit) extends Action {
-    def execute = body()
-}
-
-case class DelayedAction(time: Long, requireOP: Boolean, action: Action);
-
 class Chanserv(val ctl: Control) extends Module(ctl) with Commands {
     var isOP           = Set[Channel]()
     var isRequestingOP = Set[Channel]()
-    var delayedActions = Map[Channel, Set[DelayedAction]]().withDefaultValue(Set())
+    var opActions      = Map[Channel, List[() => Unit]]().withDefaultValue(List())
 
     def handleMessage(msg: Message) = {
-        var passThrough = true
         msg match {
             case Mode(prefix, channel, modes, user) if user == ctl.cfg.authNick.name =>
                 if (modes contains "+o") {
@@ -31,109 +17,43 @@ class Chanserv(val ctl: Control) extends Module(ctl) with Commands {
                 } else if (modes contains "-o") {
                     isOP           -= channel
                 }
-            case Msg(from, to, msg) =>
-                words(msg, 3) match {
-                    case "!unban" :: channel :: ident :: Nil =>
-                        requireAuth(from, Manager, Administrator) {
-                            if (unban(Channel(channel), Ident(ident))) {
-                                ctl.p.msg(from.nick, "Ident "+ident+" unbanned form channel "+channel+".")
-                            } else {
-                                ctl.p.msg(from.nick, "Ident "+ident+" not currently banned in channel "+channel+".")
-                            }
-                        }
-                        passThrough = false
-                    case _ =>
-                }
             case _ =>
         }
 
         checkActionsList()
 
-        passThrough
+        true
     }
-
-    private def now = System.currentTimeMillis/1000;
-
-    private def afterSeconds(channel: Channel, seconds: Int, requireOP: Boolean = false)(action: => Unit) =
-        registerAction(channel, seconds, requireOP, GenericAction(() => action))
 
     private def checkActionsList() = {
-        for((channel, acts) <- delayedActions) {
-            val toPerform = acts filter { a => (now >= a.time) && (a.requireOP == false || isOP(channel))}
-            delayedActions += channel -> (acts -- toPerform)
-
-            val inOrder = toPerform.toSeq.sortWith((a,b) => a.time < b.time)
-
-            for (a <- inOrder) {
-                a.action.execute;
-            }
-
-            if (isOP(channel)) {
-                if (!delayedActions(channel).exists(_.requireOP)) {
-                    ctl.p.deop(channel, ctl.nick);
-                }
-            }
+      for((channel, acts) <- opActions if isOP(channel)) {
+        for (a <- acts) {
+          a()
         }
+
+        opActions += channel -> Nil
+
+        isOP -= channel
+        ctl.p.deop(channel, ctl.nick);
+      }
     }
 
-    private def registerAction(channel: Channel, seconds: Int, requireOP: Boolean, action: Action) =
-        delayedActions += channel -> (delayedActions(channel) + DelayedAction(now + seconds, requireOP, action))
-
-    private def registerBan(channel: Channel, p: Prefix, seconds: Int, mute: Boolean): Boolean = {
-        // check that a ban is not already set
-        val ob = delayedActions(channel).find{ case da @ DelayedAction(_, _, BanAction(bp, _)) => bp == p }
-
-        val ident = ctl.idents.getIdent(p.nick)
-
-        if (ob.isEmpty && !ident.isEmpty) {
-            if (mute) {
-                registerAction(channel, 0,       true, BanAction(p, () => ctl.p.mute(channel, ident.get.toMask)))
-                registerAction(channel, seconds, true, BanAction(p, () => ctl.p.unmute(channel, ident.get.toMask)))
-            } else {
-                registerAction(channel, 0,       true, BanAction(p, () => ctl.p.ban(channel, ident.get.toMask)))
-                registerAction(channel, seconds, true, BanAction(p, () => ctl.p.unban(channel, ident.get.toMask)))
-            }
-            op(channel)
-            true
-        } else {
-            false
-        }
-    }
-
-    def mute(channel: Channel, p: Prefix, duration: Duration) =
-        registerBan(channel, p, duration.toSeconds, true)
-
-    def ban(channel: Channel, p: Prefix, duration: Duration) =
-        registerBan(channel, p, duration.toSeconds, false)
-
-    // "manual" unban
-    private def unban(channel: Channel, ident: Ident) = {
-        val ob = delayedActions(channel).find{ case da @ DelayedAction(_, _, BanAction(p, _)) => ctl.idents.getIdent(p.nick) == Some(ident) }
-        ob match {
-            case Some(unban) =>
-                // found the unban operation, promote it to now
-                delayedActions += channel -> (delayedActions(channel) - unban)
-                registerAction(channel, 0, true, unban.action)
-                op(channel)
-                true
-            case None =>
-                false
-        }
-    }
-
-
-    def afterOP(channel: Channel, after: Duration = Now)(action: => Unit) =
-        afterSeconds(channel, after.toSeconds, true)(() => action)
+    def afterOP(channel: Channel)(action: () => Unit) =
+      if (isOP(channel)) {
+        action()
+      } else {
+        opActions = opActions + (channel -> (opActions(channel) ::: action :: Nil))
+      }
 
     def op(channel: Channel) = {
-        if (!isOP(channel) && !isRequestingOP(channel)) {
-            isRequestingOP += channel
-            ctl.p.msg(Nick.ChanServ, "OP "+channel.name)
-        }
+      if (!isOP(channel) && !isRequestingOP(channel)) {
+        isRequestingOP += channel
+        ctl.p.msg(Nick.ChanServ, "OP "+channel.name)
+      }
     }
 
     def doAsOP(channel: Channel)(action: => Unit) = {
-        afterOP(channel)(action)
+        afterOP(channel)(() =>action)
         op(channel)
     }
 
