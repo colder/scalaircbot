@@ -19,8 +19,8 @@ class Connection(host: String, port: Int, logger: Logger) extends Actor {
     var in: BufferedReader = null
 
     var messages: List[Long] = Nil
-    val timespan  = 5
-    val threshold = 4
+    val timespan  = 10
+    val threshold = 20
 
     type Listener = OutputChannel[Any]
     var listeners = Set[Listener]()
