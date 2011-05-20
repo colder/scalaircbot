@@ -169,7 +169,6 @@ class BanLog(val ctl: Control) extends Module(ctl) with Commands {
 
 
           case None =>
-            /*
             ctl.chanserv.doAsOP(channel) {
               if (newBanEntry.tpe == Mute) {
                 ctl.p.mute(channel, newBanEntry.banned.toMask)
@@ -177,8 +176,6 @@ class BanLog(val ctl: Control) extends Module(ctl) with Commands {
                 ctl.p.ban(channel, newBanEntry.banned.toMask)
               }
             }
-            */
-            ctl.l.info("Performing "+tpe+" to "+newBanEntry.banned.toMask)
         }
 
         storeBanEntry(newBanEntry)
@@ -214,7 +211,6 @@ class BanLog(val ctl: Control) extends Module(ctl) with Commands {
             banLog -= banEntry
             storeBanEntry(banEntry.copy(dateEnd = Some(new Date())))
 
-            /*
             ctl.chanserv.doAsOP(channel) {
               if (tpe == Mute) {
                 ctl.p.unmute(channel, identbanned.toMask)
@@ -222,8 +218,6 @@ class BanLog(val ctl: Control) extends Module(ctl) with Commands {
                 ctl.p.unban(channel, identbanned.toMask)
               }
             }
-            */
-            ctl.l.info("Performing un"+tpe+" to "+identbanned.toMask)
 
             ctl.p.msg(from.nick, "Ban for account "+identbanned.value+" removed.")
 
@@ -242,7 +236,6 @@ class BanLog(val ctl: Control) extends Module(ctl) with Commands {
   private def checkBans = {
     for (be <- banLog.filter(bl => bl.dateEnd.isEmpty && bl.hasExpired)) {
       // People to unban
-      /*
       ctl.chanserv.doAsOP(channel) {
         if (be.tpe == Mute) {
           ctl.p.unmute(channel, be.banned.toMask)
@@ -250,8 +243,6 @@ class BanLog(val ctl: Control) extends Module(ctl) with Commands {
           ctl.p.unban(channel, be.banned.toMask)
         }
       }
-      */
-      ctl.l.info("Performing un"+be.tpe+" to "+be.banned.toMask)
 
       banLog -= be
 
