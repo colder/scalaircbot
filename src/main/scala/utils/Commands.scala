@@ -39,7 +39,7 @@ trait Commands {
     class DoAndReply[T](body: => Unit) {
         import InnerProtocol._
 
-        def onReply[T](pf: PartialFunction[Message, Option[T]])(implicit ms: Long = 5000): Option[T] = {
+        def onReply[T](pf: PartialFunction[Message, Option[T]])(implicit ms: Long = 20000): Option[T] = {
             import scala.actors.Actor._
             import scala.actors.TIMEOUT
 

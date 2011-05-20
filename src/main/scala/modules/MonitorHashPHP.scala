@@ -185,7 +185,7 @@ class MonitorHashPHP(val ctl: Control) extends Module(ctl) with Commands {
 
 
     def mute(prefix: Prefix, duration: Duration, reason: String) = { 
-        ctl.chanserv.mute(channel, prefix, duration)
+        ctl.banlog.registerMuteSilent(prefix.nick, duration, "Automatic: "+reason)
         ctl.p.msg(channel, prefix.nick + " has been muted for "+duration+" "+reason+".")
     }
 }

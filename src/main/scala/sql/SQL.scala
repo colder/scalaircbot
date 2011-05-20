@@ -3,6 +3,7 @@ package ircbot.sql
 import java.sql.SQLException
 import java.sql.PreparedStatement
 import java.sql.ResultSet
+import java.util.Date
 
 abstract class SQLConnection {
     var conn: Option[java.sql.Connection];
@@ -11,6 +12,11 @@ abstract class SQLConnection {
     def prepareStatement(sql: String): SQLStatement = conn match {
         case Some(x) => new SQLStatement(x.prepareStatement(sql))
         case None => throw new Exception("No connection")
+    }
+
+
+    def lastInsertID: Int = {
+      prepareStatement("SELECT LAST_INSERT_ID()").executeQuery.firstRow.getInt(1)
     }
 
     def prepareStatement(sql: String, args:Any*): SQLStatement = {
@@ -25,6 +31,25 @@ abstract class SQLConnection {
 
         for(arg <- args) {
             arg match {
+                case op: Option[_] =>
+                    if (op.isEmpty) {
+                      stmt.setNull(index, java.sql.Types.NULL)
+                    } else {
+                      op.get match {
+                        case ad: Date =>
+                          stmt.setTimestamp(index, new java.sql.Timestamp(ad.getTime()))
+                        case as: String =>
+                          stmt.setString(index, as)
+                        case ai: Int =>
+                          stmt.setInt(index, ai)
+                        case _ =>
+                            throw new Exception("Invalid type of argument passed")
+                      }
+                    }
+                    index += 1
+                case ad: Date =>
+                    stmt.setTimestamp(index, new java.sql.Timestamp(ad.getTime()))
+                    index += 1
                 case as: String =>
                     stmt.setString(index, as)
                     index += 1

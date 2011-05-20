@@ -22,6 +22,7 @@ class Control(val cfg: Config) extends Actor {
     /* Special chanserv module used to perform delayed OP Actions */
     var chanserv: modules.Chanserv = null
     var trackers: modules.Trackers = null
+    var banlog: modules.BanLog = null
 
     /* Store for Nick->Idents relationships */
     var idents: modules.Idents = null
@@ -51,6 +52,7 @@ class Control(val cfg: Config) extends Actor {
         registerModule(chanserv)
         registerModule(trackers)
         registerModule(idents)
+        registerModule(banlog)
         registerModule(new Manager(this))
         registerModule(new MonitorHashPHP(this))
         registerModule(new RussianRoulette(this))
@@ -163,7 +165,7 @@ class Control(val cfg: Config) extends Actor {
             p.nick(nick)
         } else {
             if (!cfg.authPass.equals("")) {
-                p.pass(":"+cfg.authNick.name+" "+cfg.authPass)
+                p.pass(":"+cfg.authIdent.value+" "+cfg.authPass)
             }
             p.user(cfg.authNick.name, cfg.authNick.name, cfg.authNick.name, cfg.authRealName)
             p.nick(nick)
@@ -210,9 +212,13 @@ class Control(val cfg: Config) extends Actor {
             l.info("Loading Trackers Module...")
             trackers = new modules.Trackers(this)
 
+            l.info("Loading Ident Module...")
             /* Freenode Idents attached to Nicks */
             idents = new modules.Idents(this)
             trackers.registerNickTracker(idents)
+
+            l.info("Loading BanLog Module...")
+            banlog = new modules.BanLog(this)
 
             checker = new ConnectionChecker(this)
             checker start

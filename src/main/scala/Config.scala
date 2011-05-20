@@ -18,6 +18,7 @@ class Config(path: String) {
 
     private val auth = data \ "auth" head
     val authNick = Nick((auth \ "@nick").text)
+    val authIdent = Ident((auth \ "@ident").text)
     val authPass = (auth \ "@pass").text
     val authRealName = (auth \ "@realname").text
 

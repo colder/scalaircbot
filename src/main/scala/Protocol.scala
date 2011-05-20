@@ -30,8 +30,14 @@ sealed trait AbsChannel {
     val name: String
 }
 
-case class Nick(name: String) extends AbsChannel {
+sealed trait UserID
+
+case class Nick(name: String) extends AbsChannel with UserID {
     def nextNick = Nick(name+"_")
+}
+
+case class Ident(val value: String) extends UserID {
+  def toMask: String = "$a:"+value
 }
 
 object Nick {

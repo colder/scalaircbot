@@ -6,10 +6,6 @@ import scala.actors.Actor
 import InnerProtocol._
 import utils.Commands
 
-case class Ident(val value: String) {
-  def toMask: String = "$a:"+value
-}
-
 class Idents(val ctl: Control) extends Module(ctl) with NickTracker with Commands {
     def now = System.currentTimeMillis
 
