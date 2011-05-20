@@ -6,12 +6,16 @@ import utils._
 import java.util.{Date,Calendar}
 import java.text.SimpleDateFormat
 
-abstract class BanType
+abstract class BanType {
+  val alt: String
+}
 case object Ban  extends BanType {
   override def toString = "ban"
+  val alt = "banned"
 }
 case object Mute extends BanType {
   override def toString = "mute"
+  val alt = "muted"
 }
 
 case class BanLogEntry(id: Int = 0, banner: Ident, banned: Ident, tpe: BanType, dateStart: Date, duration: Duration, dateEnd: Option[Date], reason: String) {
@@ -148,6 +152,19 @@ class BanLog(val ctl: Control) extends Module(ctl) with Commands {
       case i: Ident =>
         Some(i)
       case n: Nick =>
+        ctl.factoids.lookup("banmessage") match {
+          case Some(banmessage) =>
+            // Notify the user by PM:
+            try {
+              ctl.p.msg(n, String.format(banmessage, tpe.alt, duration.toString, reason))
+            } catch {
+              case e =>
+                ctl.error("Cound not format: "+e.getMessage)
+            }
+          case None =>
+            ctl.error("Cound not find factoid banmessage!")
+        }
+
         ctl.idents.getIdent(n)
     }
 

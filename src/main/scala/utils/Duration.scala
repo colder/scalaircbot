@@ -6,19 +6,19 @@ import java.util.regex.Pattern
 abstract class Duration(seconds: Int) {
     val toSeconds = seconds
 
-    override def toString = seconds+" seconds"
+    override def toString = seconds+" second"+(if (seconds > 1) "s" else "")
 }
 
 case object Now extends Duration(0)
 case class Seconds(s: Int) extends Duration(s)
 case class Minutes(m: Int) extends Duration(60*m) {
-    override def toString = m+" minutes"
+    override def toString = m+" minute"+(if (m > 1) "s" else "")
 }
 case class Hours(h: Int) extends Duration(60*60*h) {
-    override def toString = h+" hours"
+    override def toString = h+" hour"+(if (h > 1) "s" else "")
 }
 case class Days(d: Int) extends Duration(24*60*60*d) {
-    override def toString = d+" days"
+    override def toString = d+" day"+(if (d > 1) "s" else "")
 }
 
 object ExDuration {

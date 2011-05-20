@@ -23,6 +23,7 @@ class Control(val cfg: Config) extends Actor {
     var chanserv: modules.Chanserv = null
     var trackers: modules.Trackers = null
     var banlog: modules.BanLog = null
+    var factoids: modules.Factoids = null
 
     /* Store for Nick->Idents relationships */
     var idents: modules.Idents = null
@@ -57,7 +58,7 @@ class Control(val cfg: Config) extends Actor {
         registerModule(new MonitorHashPHP(this))
         registerModule(new RussianRoulette(this))
         registerModule(new Yahoo(this))
-        registerModule(new Factoids(this))
+        registerModule(factoids)
 
     }
 
@@ -222,6 +223,9 @@ class Control(val cfg: Config) extends Actor {
 
             checker = new ConnectionChecker(this)
             checker start
+
+            l.info("Loading Factoid Module...")
+            factoids = new modules.Factoids(this)
 
             registerDefaultModules
         } catch {
