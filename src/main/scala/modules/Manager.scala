@@ -1,9 +1,9 @@
 package ircbot
 package modules
 
-import utils.Commands
+import utils._
 
-class Manager(val ctl: Control) extends Module(ctl) with Commands {
+class Manager(val ctl: Control) extends Module(ctl) with Commands with SimpleHelp {
     def handleMessage(msg: Message) = {
         msg match {
             case Msg(prefix, to: Nick, msg) =>
@@ -131,4 +131,14 @@ class Manager(val ctl: Control) extends Module(ctl) with Commands {
                 ctl.db.handleException(ex)
         }
     }
+
+    // Help info
+    val commandsHelp = Map(
+      "idents"  -> (Set(Manager: UserLevel), "!idents",            "Display the ACL"),
+      "say"     -> (Set(Manager: UserLevel), "!say <to> <msg>",    "Write <msg> to <to>"), 
+      "grant"   -> (Set(Manager: UserLevel), "!grant <acc> <lvl>", "Grant level <lvl> to account <acc>"),
+      "revoke"  -> (Set(Manager: UserLevel), "!revoke <acc>",      "Revoke level from account <acc>"),
+      "join"    -> (Set(Manager: UserLevel), "!join <chan>",       "Ask the bot to join <chan>"),
+      "part"    -> (Set(Manager: UserLevel), "!part <chan>",       "Ask the bot to leave <chan>")
+    )
 }

@@ -45,7 +45,7 @@ case class BanLogEntry(id: Int = 0, banner: Ident, banned: Ident, tpe: BanType, 
   }
 }
 
-class BanLog(val ctl: Control) extends Module(ctl) with Commands {
+class BanLog(val ctl: Control) extends Module(ctl) with Commands with SimpleHelp {
   val channel = Channel("##php")
 
   var banLog = Set[BanLogEntry]()
@@ -116,21 +116,12 @@ class BanLog(val ctl: Control) extends Module(ctl) with Commands {
             }
             false
 
-          case "!ban" :: _ | "!mute" :: _ | "!unban" :: _ | "!unmute" :: _  | "!banexplain" :: _ | "!banstatus" :: _ =>
-            requireAuth(from, Manager, Administrator) {
-              banLogHelp(from)
-            }
-            false
           case _ =>
             true
         }
       case _ =>
         true
     }
-  }
-
-  private def banLogHelp(from: Prefix) {
-    ctl.p.msg(from.nick, "Invalid ban command. !ban/!mute <nick> <duration (1d | 2h | 3m)> <reason> || !banstatus || !banexplain <nick> || !unban/!unmute <nick>")
   }
 
   def registerBan(from: Prefix, who: UserID, duration: Duration, reason: String) = registerBanEx(Some(from), Ban, who, duration, reason)
@@ -338,4 +329,14 @@ class BanLog(val ctl: Control) extends Module(ctl) with Commands {
 
     newBanEntry
   }
+
+  // Help info
+  val commandsHelp = Map(
+    "ban" ->        (Set(Administrator, Manager), "!ban <nick> <duration> <reason>",  "Ban nick <nick> for <duration>, log <reason>"),
+    "mute" ->       (Set(Administrator, Manager), "!mute <nick> <duration> <reason>", "Mute nick <nick> for <duration>, log <reason>"),
+    "unban" ->      (Set(Administrator, Manager), "!unban <nick>",                    "Unban nick <nick>"),
+    "unmute" ->     (Set(Administrator, Manager), "!unmute <nick>",                   "Unmute nick <nick>"),
+    "banstatus" ->  (Set(Administrator, Manager), "!banstatus",                       "Display list of active bans/mutes"),
+    "banexplain" -> (Set(Administrator, Manager), "!banexplain <nick>",               "Display ban history for <nick>, with reasons")
+  )
 }

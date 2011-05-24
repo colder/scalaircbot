@@ -4,9 +4,9 @@ package modules
 import scala.actors.Actor
 
 import InnerProtocol._
-import utils.Commands
+import utils._
 
-class Idents(val ctl: Control) extends Module(ctl) with NickTracker with Commands {
+class Idents(val ctl: Control) extends Module(ctl) with NickTracker with Commands with SimpleHelp {
     def now = System.currentTimeMillis
 
     val cacheTimeout = 24*60*60
@@ -128,4 +128,9 @@ class Idents(val ctl: Control) extends Module(ctl) with NickTracker with Command
             case None =>
         }
     }
+
+    // Help info
+    val commandsHelp = Map(
+      "ident" -> (Set(Administrator, Manager), "!ident <nick>", "Display the freenode account obtained from this nick")
+    )
 }

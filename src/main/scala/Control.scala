@@ -22,7 +22,7 @@ class Control(val cfg: Config) extends Actor {
     /* Special chanserv module used to perform delayed OP Actions */
     var chanserv: modules.Chanserv = null
     var trackers: modules.Trackers = null
-    var banlog: modules.BanLog = null
+    var banlog: modules.BanLog     = null
     var factoids: modules.Factoids = null
 
     /* Store for Nick->Idents relationships */
@@ -50,6 +50,7 @@ class Control(val cfg: Config) extends Actor {
     def registerDefaultModules {
         import modules._
         registerModule(new Protocol(this))
+        registerModule(new HelpProvider(this))
         registerModule(chanserv)
         registerModule(trackers)
         registerModule(idents)

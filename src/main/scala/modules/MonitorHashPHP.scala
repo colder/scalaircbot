@@ -3,7 +3,7 @@ package modules
 
 import utils._
 
-class MonitorHashPHP(val ctl: Control) extends Module(ctl) with Commands {
+class MonitorHashPHP(val ctl: Control) extends Module(ctl) with Commands with SimpleHelp {
     val channel = Channel("##php")
     val floodTimespan = 4
     val floodThreshold = 5
@@ -188,4 +188,11 @@ class MonitorHashPHP(val ctl: Control) extends Module(ctl) with Commands {
         ctl.banlog.registerMuteSilent(prefix.nick, duration, "Automatic: "+reason)
         ctl.p.msg(channel, prefix.nick + " has been muted for "+duration+" "+reason+".")
     }
+
+    // Help info
+    val commandsHelp = Map(
+      "profanity list"    -> (Set(Administrator, Manager), "!profanity list",           "List all words considered as profanity"),
+      "profanity add"     -> (Set(Administrator, Manager), "!profanity add <word>",     "Add <word> to the list of profanities"),
+      "profanity remove"  -> (Set(Administrator, Manager), "!profanity remove <word>",  "Remove <word> from the list of profanities")
+    )
 }

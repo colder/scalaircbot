@@ -1,9 +1,9 @@
 package ircbot
 package modules
 
-import utils.Commands
+import utils._
 
-class Factoids(val ctl: Control) extends Module(ctl) with Commands {
+class Factoids(val ctl: Control) extends Module(ctl) with Commands with SimpleHelp {
     def handleMessage(msg: Message) = msg match {
         case Msg(from, to: Channel, msg) =>
             // msg sent on channel
@@ -155,4 +155,12 @@ class Factoids(val ctl: Control) extends Module(ctl) with Commands {
             None
         }
     }
+
+    // Help info
+    val commandsHelp = Map(
+      "def"    -> (Set(Regular, Administrator, Manager),        "!def <fact> = <msg>", "Defines/Overwrite the factoid <fact> with the new text <msg>"),
+      "undef"  -> (Set(Regular, Administrator, Manager),        "!undef <fact>",       "Removes <fact> from the databse of factoids"),
+      "search" -> (Set(Regular, Administrator, Manager),        "!search <words>",     "Search for <words> in the factoid database"),
+      "simple" -> (Set(Guest, Regular, Administrator, Manager), "<fact>",              "Display factoid <fact>")
+    )
 }
