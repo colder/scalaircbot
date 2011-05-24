@@ -158,9 +158,11 @@ class Factoids(val ctl: Control) extends Module(ctl) with Commands with SimpleHe
 
     // Help info
     val commandsHelp = Map(
-      "def"    -> (Set(Regular, Administrator, Manager),        "!def <fact> = <msg>", "Defines/Overwrite the factoid <fact> with the new text <msg>"),
-      "undef"  -> (Set(Regular, Administrator, Manager),        "!undef <fact>",       "Removes <fact> from the databse of factoids"),
-      "search" -> (Set(Regular, Administrator, Manager),        "!search <words>",     "Search for <words> in the factoid database"),
-      "simple" -> (Set(Guest, Regular, Administrator, Manager), "<fact>",              "Display factoid <fact>")
+      "def"     -> (Set(Regular, Administrator, Manager),        "!def <fact> = <msg>", "Defines/Overwrite the factoid <fact> with the new text <msg>"),
+      "undef"   -> (Set(Regular, Administrator, Manager),        "!undef <fact>",       "Removes <fact> from the databse of factoids"),
+      "search"  -> (Set(Regular, Administrator, Manager),        "!search <words>",     "Search for <words> in the factoid database"),
+      "fact"    -> (Set(Guest, Regular, Administrator, Manager), "<fact>",              "Display factoid <fact>"),
+      "!+fact"  -> (Set(Regular, Administrator, Manager),        "!+<fact>",            "Public command: display factoid <fact>"),
+      "public2" -> (Set(Regular, Administrator, Manager),        "<nick>, !+<fact>",    "Public command: display factoid <fact>, and will prefix it by \"<nick>,\"")
     )
 }
