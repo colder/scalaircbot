@@ -4,7 +4,7 @@ package ircbot
 abstract class UserLevel {
     override def toString = this match {
         case Guest => "guest"
-        case Normal => "normal"
+        case Regular => "regular"
         case Administrator => "administrator"
         case Manager => "manager"
     }
@@ -12,7 +12,7 @@ abstract class UserLevel {
 
 object UserLevel {
     def fromString(str: String) = str.toLowerCase match {
-        case "normal" => Normal
+        case "regular" => Regular
         case "administrator" => Administrator
         case "manager" => Manager
         case _ => Guest
@@ -20,20 +20,17 @@ object UserLevel {
 }
 
 object Guest extends UserLevel
-object Normal extends UserLevel
+object Regular extends UserLevel
 object Administrator extends UserLevel
 object Manager extends UserLevel
 
-class User(ctl: Control, val username: String, val hostname: String) {
+class User(ctl: Control, val nick: Nick) {
     def this(ctl: Control, prefix: Prefix) = {
-        this(ctl, prefix.username, prefix.hostname)
+        this(ctl, prefix.nick)
     }
 
-    val (mask, level) = ctl.maskStore.get(username, hostname);
-
-    def setLevel(level: UserLevel) = {
-        ctl.db.prepareStatement("UPDATE irc_users SET level = ? WHERE mask = ?", level.toString, mask).executeUpdate
-    }
+    val ident = ctl.idents.getIdent(nick)
+    val level = ctl.idents.getAuth(nick)
 }
 
 

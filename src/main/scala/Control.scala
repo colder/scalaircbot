@@ -4,6 +4,7 @@ import sql.MysqlConnection
 
 import scala.actors.Actor
 import scala.actors.Actor._
+import utils._
 
 // Main controlling class
 class Control(val cfg: Config) extends Actor {
@@ -18,11 +19,14 @@ class Control(val cfg: Config) extends Actor {
     /* Database connection */
     var db: MysqlConnection = null
 
-    /* Mask Storage and Handling */
-    var maskStore: MaskStore = null
-
     /* Special chanserv module used to perform delayed OP Actions */
     var chanserv: modules.Chanserv = null
+    var trackers: modules.Trackers = null
+    var banlog: modules.BanLog     = null
+    var factoids: modules.Factoids = null
+
+    /* Store for Nick->Idents relationships */
+    var idents: modules.Idents = null
 
     /* nickname of the bot */
     var nick = cfg.authNick
@@ -46,12 +50,16 @@ class Control(val cfg: Config) extends Actor {
     def registerDefaultModules {
         import modules._
         registerModule(new Protocol(this))
+        registerModule(new HelpProvider(this))
         registerModule(chanserv)
+        registerModule(trackers)
+        registerModule(idents)
+        registerModule(banlog)
         registerModule(new Manager(this))
         registerModule(new MonitorHashPHP(this))
         registerModule(new RussianRoulette(this))
         registerModule(new Yahoo(this))
-        registerModule(new Factoids(this))
+        registerModule(factoids)
 
     }
 
@@ -75,17 +83,20 @@ class Control(val cfg: Config) extends Actor {
         var registering = false
         var registered  = false
 
+        c ! StartListening
+        c ! InitConnection
+
         while(continue) {
-            c ! ReadLine
+
             receive {
-                case ReadLineAnswer(line) =>
+                case ReadLine(line) =>
                     lastMessage = System.currentTimeMillis/1000
 
                     val msg = p.parseLine(line)
 
                     // Special message handling
                     msg match {
-                        case Notice if !registering && !registered =>
+                        case _: Notice if !registering && !registered =>
                             // First Notice => register
                             register(false)
                             registering = true
@@ -100,13 +111,13 @@ class Control(val cfg: Config) extends Actor {
                         case Error(433, _) =>
                             l.warn("Nick is already in use!")
 
-                            nick = nick+"_"
+                            nick = nick.nextNick
 
                             register(true)
                         case Error(437, _) =>
                             l.warn("Nick is unavailable!")
 
-                            nick = nick+"_"
+                            nick = nick.nextNick
 
                             register(false)
                         case EOF =>
@@ -123,10 +134,12 @@ class Control(val cfg: Config) extends Actor {
 
                     try {
                         connected = false;
-                        c ! ReinitConnection
+                        c ! CloseConnection
                         l.info("Connecting to IRC server...")
                         c = new Connection(cfg.hostHost, cfg.hostPort, l)
                         c.start
+                        c ! StartListening
+                        c ! InitConnection
                         reconnectModules
                         connected = true
                     } catch {
@@ -140,6 +153,7 @@ class Control(val cfg: Config) extends Actor {
                     }
             }
         }
+        c ! StopListening
 
         /* Shutdown process... */
         shutdown
@@ -149,18 +163,17 @@ class Control(val cfg: Config) extends Actor {
 
         if (release && !cfg.authPass.equals("")) {
             nick = cfg.authNick;
-            p.msg("nickserv", "release "+nick+" "+cfg.authPass)
+            p.msg(Nick.NickServ, "release "+nick.name+" "+cfg.authPass)
             p.nick(nick)
         } else {
             if (!cfg.authPass.equals("")) {
-                p.pass(":"+cfg.authNick+" "+cfg.authPass)
+                p.pass(":"+cfg.authIdent.value+" "+cfg.authPass)
             }
-            p.user(cfg.authNick, cfg.authNick, cfg.authNick, cfg.authRealName)
+            p.user(cfg.authNick.name, cfg.authNick.name, cfg.authNick.name, cfg.authRealName)
             p.nick(nick)
         }
 
     }
-
 
     /* Start the connection Actor as well */
     override def start() = {
@@ -195,14 +208,25 @@ class Control(val cfg: Config) extends Actor {
             l.info("Connecting to Database...")
             db       = new MysqlConnection(cfg.dbHost, cfg.dbPort, cfg.dbDatabase, cfg.dbUser, cfg.dbPass)
 
-            l.info("Loading Mask Store...")
-            maskStore = new MaskStore(this)
-
             l.info("Loading ChanServ Module...")
             chanserv = new modules.Chanserv(this)
 
+            l.info("Loading Trackers Module...")
+            trackers = new modules.Trackers(this)
+
+            l.info("Loading Ident Module...")
+            /* Freenode Idents attached to Nicks */
+            idents = new modules.Idents(this)
+            trackers.registerNickTracker(idents)
+
+            l.info("Loading BanLog Module...")
+            banlog = new modules.BanLog(this)
+
             checker = new ConnectionChecker(this)
             checker start
+
+            l.info("Loading Factoid Module...")
+            factoids = new modules.Factoids(this)
 
             registerDefaultModules
         } catch {

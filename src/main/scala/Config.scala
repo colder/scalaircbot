@@ -17,9 +17,10 @@ class Config(path: String) {
     val hostPort = Integer.parseInt((host \ "@port").text)
 
     private val auth = data \ "auth" head
-    val authNick = (auth \ "@nick").text
+    val authNick = Nick((auth \ "@nick").text)
+    val authIdent = Ident((auth \ "@ident").text)
     val authPass = (auth \ "@pass").text
     val authRealName = (auth \ "@realname").text
 
-    val channels = { (data \ "perform" \ "channel") map { _.text} }
+    val channels = { (data \ "perform" \ "channel") map { c => Channel(c.text)} }
 }

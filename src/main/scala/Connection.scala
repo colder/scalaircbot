@@ -4,7 +4,14 @@ import java.io._
 import java.net.{InetAddress,ServerSocket,Socket,SocketException, InetSocketAddress}
 
 import scala.actors.Actor
+import scala.actors.OutputChannel
 import scala.actors.Actor._
+
+import scala.collection.mutable.Queue
+
+import utils.Logger
+
+import InnerProtocol._
 
 class Connection(host: String, port: Int, logger: Logger) extends Actor {
     val socket = new Socket()
@@ -12,8 +19,11 @@ class Connection(host: String, port: Int, logger: Logger) extends Actor {
     var in: BufferedReader = null
 
     var messages: List[Long] = Nil
-    val timespan  = 5
-    val threshold = 4
+    val timespan  = 10
+    val threshold = 20
+
+    type Listener = OutputChannel[Any]
+    var listeners = Set[Listener]()
 
     def init {
         val ia = InetAddress.getByName(host);
@@ -49,23 +59,45 @@ class Connection(host: String, port: Int, logger: Logger) extends Actor {
     def isFlooding = messages.filter{ _ > System.currentTimeMillis-timespan*1000 }.length >= threshold
 
     def act() {
-        import InnerProtocol._
 
         var continue = true;
+        var opened   = false;
 
         while (continue) {
-            receive {
-                case ReadLine => sender ! ReadLineAnswer(readLine)
-                case WriteLine(line) => writeLine(line)
-                case ReinitConnection =>
+            if (opened) {
+              // Read lines from the connection, if any
+              while (in.ready()) {
+                  val newline = readLine
+
+                  // Dispatch to readers
+                  for (l <- listeners) {
+                      l ! ReadLine(newline)
+                  }
+              }
+            }
+
+
+            // Handles commands
+            receiveWithin(200) {
+                case InitConnection =>
+                    init
+                    opened = true
+                case StartListening =>
+                    listeners += sender
+                case StopListening =>
+                    listeners -= sender
+
+                case WriteLine(line) =>
+                    writeLine(line)
+
+                case CloseConnection =>
                     /* Shut the connection down */
                     out.close
                     in.close
                     socket.close
                     continue = false
+                case _ =>
             }
         }
     }
-
-    init
 }

@@ -1,4 +1,6 @@
 package ircbot
+package utils
+
 import InnerProtocol._
 import scala.actors.Actor
 import scala.actors.Actor._

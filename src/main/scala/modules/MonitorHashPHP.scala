@@ -1,11 +1,10 @@
-package ircbot.modules
+package ircbot
+package modules
 
-import ircbot._
-import helpers.Auth
-import helpers.Commands
+import utils._
 
-class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
-    val channel = "##php"
+class MonitorHashPHP(val ctl: Control) extends Module(ctl) with Commands with SimpleHelp {
+    val channel = Channel("##php")
     val floodTimespan = 4
     val floodThreshold = 5
     val profanityTimespan = 2880
@@ -15,9 +14,9 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
     val shortMessagesBufferSize = 5
     val shortMessagesTimespan   = 30
 
-    var messages      = Map[String, List[Long]]().withDefaultValue(Nil)
-    var profanity     = Map[String, List[(String, Long)]]().withDefaultValue(Nil)
-    var shortMessages = Map[String, List[(Int, Long)]]().withDefaultValue(Nil)
+    var messages      = Map[Nick, List[Long]]().withDefaultValue(Nil)
+    var profanity     = Map[Nick, List[(String, Long)]]().withDefaultValue(Nil)
+    var shortMessages = Map[Nick, List[(Int, Long)]]().withDefaultValue(Nil)
 
     var lastCleanup = 0
 
@@ -27,29 +26,33 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
                 // Check for profanity
                 if (isProfanity(msg)) {
                     addProfanity(from.nick, msg)
-                    if (isAbusingProfanity(from.nick)) {
-                        mute(from, Minutes(30), "to prevent profanity abuse")
-                    } else {
-                        ctl.p.msg(from.nick, "Please keep the profanity out of "+channel+", thanks.")
+                    if (!isGranted(from, Manager, Administrator)) {
+                        if (isAbusingProfanity(from.nick)) {
+                            mute(from, Minutes(30), "to prevent profanity abuse")
+                        } else {
+                            ctl.p.msg(from.nick, "Please keep the profanity out of "+channel+", thanks.")
+                        }
                     }
                 }
 
 
-                if (!isGranted(ctl, from, Normal, Manager, Administrator)) {
-                    // checks that no nick sends more than <floodThreshold> msg per <floodTimespan> sec
-                    addMessage(from.nick)
+                // checks that no nick sends more than <floodThreshold> msg per <floodTimespan> sec
+                addMessage(from.nick)
 
-                    if (isFlooding(from.nick)) {
+                if (isFlooding(from.nick)) {
+                    if (!isGranted(from, Regular, Manager, Administrator)) {
                         mute(from, Minutes(5), "to prevent them from flooding the channel more")
-                        messages -= from.nick
-                    } else {
-                        // check that messages are of decent length
-                        addShortMessage(from.nick, msg)
+                    }
+                    messages -= from.nick
+                } else {
+                    // check that messages are of decent length
+                    addShortMessage(from.nick, msg)
 
-                        if (isAbusingEnter(from.nick)) {
+                    if (isAbusingEnter(from.nick)) {
+                        if (!isGranted(from, Regular, Manager, Administrator)) {
                             ctl.p.msg(from.nick, "Please stop using your enter key as punctuation, thanks.")
-                            shortMessages -= from.nick
                         }
+                        shortMessages -= from.nick
                     }
                 }
 
@@ -59,35 +62,29 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
             } else {
                 words(msg, 3) match {
                     case "!profanity" :: "add" :: word :: Nil =>
-                        if (isGranted(ctl, from, Manager, Administrator)) {
+                        requireAuth(from, Manager, Administrator) {
                             val updated = ctl.db.prepareStatement("INSERT INTO irc_profanity SET word = ?", word).executeUpdate
                             ctl.p.msg(from.nick, "Word '"+word+"' registered as profanity.")
-                        } else {
-                            ctl.p.msg(from.nick, "Permission denied.")
                         }
                         false
 
                     case "!profanity" :: "remove" :: word :: Nil =>
-                        if (isGranted(ctl, from, Manager, Administrator)) {
+                        requireAuth(from, Manager, Administrator) {
                             val upadted = ctl.db.prepareStatement("DELETE FROM irc_profanity WHERE word = ?", word).executeUpdate
                             if (upadted > 0) {
                                 ctl.p.msg(from.nick, "Word '"+word+"' removed as profanity.")
                             } else {
                                 ctl.p.msg(from.nick, "Word '"+word+"' not found.")
                             }
-                        } else {
-                            ctl.p.msg(from.nick, "Permission denied.")
                         }
                         false
 
                     case "!profanity" :: "list" :: Nil =>
-                        if (isGranted(ctl, from, Manager, Administrator)) {
+                        requireAuth(from, Manager, Administrator) {
                             val results = ctl.db.prepareStatement("SELECT DISTINCT word FROM irc_profanity").executeQuery
                             var l: List[String] = Nil;
                             for (r <- results) l = l ::: r.getString("word") :: Nil
                             ctl.p.msg(from.nick, "List: "+l.mkString(", "))
-                        } else {
-                            ctl.p.msg(from.nick, "Permission denied.")
                         }
                         false
                     case _ => true
@@ -98,17 +95,17 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
 
     def now = System.currentTimeMillis
 
-    def addMessage(nick: String) =
+    def addMessage(nick: Nick) =
         messages += nick -> (now :: messages(nick))
 
     def countRealWords(msg: String) = {
         words(msg.replaceAll("[^a-zA-Z0-9 ]+", "")).size
     }
 
-    def addShortMessage(nick: String, msg: String) =
+    def addShortMessage(nick: Nick, msg: String) =
         shortMessages += nick -> ((countRealWords(msg), now) :: shortMessages(nick).take(shortMessagesBufferSize-1))
 
-    def isAbusingEnter(nick: String) = {
+    def isAbusingEnter(nick: Nick) = {
         val msgs = shortMessages(nick).filter{ _._2 > now-shortMessagesTimespan*1000 }.map(_._1)
 
         if (msgs.size == shortMessagesBufferSize) {
@@ -118,16 +115,16 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
         }
     }
 
-    def addProfanity(nick: String, msg: String) =
+    def addProfanity(nick: Nick, msg: String) =
         profanity += nick -> ((msg, now) :: profanity(nick))
 
-    def isFlooding(nick: String) =
+    def isFlooding(nick: Nick) =
         messages(nick).filter{ _ > now-floodTimespan*1000 }.length >= floodThreshold
 
-    def isUsingProfanity(nick: String, threshold: Int) =
+    def isUsingProfanity(nick: Nick, threshold: Int) =
         profanity(nick).filter{ _._2 > now-profanityTimespan*1000 }.length == threshold
 
-    def isAbusingProfanity(nick: String): Boolean =
+    def isAbusingProfanity(nick: Nick): Boolean =
         isUsingProfanity(nick, profanityThreshold)
 
     def isProfanity(msg: String) = {
@@ -188,7 +185,14 @@ class MonitorHashPHP(ctl: Control) extends Module(ctl) with Auth with Commands {
 
 
     def mute(prefix: Prefix, duration: Duration, reason: String) = { 
-        ctl.chanserv.mute(channel, prefix, duration)
+        ctl.banlog.registerMuteSilent(prefix.nick, duration, "Automatic: "+reason)
         ctl.p.msg(channel, prefix.nick + " has been muted for "+duration+" "+reason+".")
     }
+
+    // Help info
+    val commandsHelp = Map(
+      "profanity list"    -> (Set(Administrator, Manager), "!profanity list",           "List all words considered as profanity"),
+      "profanity add"     -> (Set(Administrator, Manager), "!profanity add <word>",     "Add <word> to the list of profanities"),
+      "profanity remove"  -> (Set(Administrator, Manager), "!profanity remove <word>",  "Remove <word> from the list of profanities")
+    )
 }

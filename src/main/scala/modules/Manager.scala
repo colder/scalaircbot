@@ -1,72 +1,62 @@
-package ircbot.modules
+package ircbot
+package modules
 
-import ircbot._
-import helpers.Auth
+import utils._
 
-class Manager(ctl: Control) extends Module(ctl) with Auth {
+class Manager(val ctl: Control) extends Module(ctl) with Commands with SimpleHelp {
     def handleMessage(msg: Message) = {
         msg match {
-            case Msg(prefix, to, msg) =>
-                if (to.toList.head != '#') msg.split(" ", 3).toList match {
-                    case "!masks" :: "reload" :: Nil =>
-                        if (isGranted(ctl, prefix, Manager)) {
-                            ctl.maskStore.reload
-                            ctl.p.msg(prefix.nick, "Masks Reloaded.")
-                        } else {
-                            ctl.p.msg(prefix.nick, "Permission denied.")
+            case Msg(prefix, to: Nick, msg) =>
+                msg.split(" ", 3).toList match {
+                    case "!idents" :: "clear" :: Nil =>
+                        requireAuth(prefix, Manager) {
+                            ctl.idents.clearIdentAuthCache
+                            ctl.p.msg(prefix.nick, "Idents cache cleared.")
                         }
                         false
-                    case "!masks" :: Nil =>
-                        if (isGranted(ctl, prefix, Manager)) {
+                    case "!idents" :: Nil =>
+                        requireAuth(prefix, Manager) {
                             listAccesses(prefix)
-                        } else {
-                            ctl.p.msg(prefix.nick, "Permission denied.")
                         }
                         false
                     case "!say" :: to :: msg :: Nil =>
-                        if (isGranted(ctl, prefix, Manager)) {
-                            ctl.p.msg(to, msg)
+                        requireAuth(prefix, Manager) {
+                            if (to startsWith "#") {
+                                ctl.p.msg(Channel(to), msg)
+                            } else {
+                                ctl.p.msg(Nick(to), msg)
+                            }
                             ctl.p.msg(prefix.nick, "Message transmitted.")
-                        } else {
-                            ctl.p.msg(prefix.nick, "Permission denied.")
                         }
                         false
                     case "!grant" :: to :: access :: Nil =>
-                        if (isGranted(ctl, prefix, Manager)) {
+                        requireAuth(prefix, Manager) {
                             grantAccess(prefix, to, access)
-                        } else {
-                            ctl.p.msg(prefix.nick, "Permission denied.")
                         }
                         false
                     case "!revoke" :: to :: Nil =>
-                        if (isGranted(ctl, prefix, Manager)) {
+                        requireAuth(prefix, Manager) {
                             revokeAccess(prefix, to)
-                        } else {
-                            ctl.p.msg(prefix.nick, "Permission denied.")
                         }
                         false
                     case "!join" :: chan :: Nil =>
-                        if (isGranted(ctl, prefix, Manager)) {
-                            ctl.p.join(chan)
+                        requireAuth(prefix, Manager) {
+                            ctl.p.join(Channel(chan))
                             ctl.p.msg(prefix.nick, "Joined channel "+chan+".")
-                        } else {
-                            ctl.p.msg(prefix.nick, "Permission denied.")
                         }
                         false
                     case "!part" :: chan :: Nil =>
-                        if (isGranted(ctl, prefix, Manager)) {
-                            ctl.p.part(chan)
+                        requireAuth(prefix, Manager) {
+                            ctl.p.part(Channel(chan))
                             ctl.p.msg(prefix.nick, "Left channel "+chan+".")
-                        } else {
-                            ctl.p.msg(prefix.nick, "Permission denied.")
                         }
 
                         false
                     case "!help" :: Nil =>
-                        val help = userLevel(ctl, prefix) match {
+                        val help = ctl.idents.getAuth(prefix.nick) match {
                             case Manager =>
-                                "!masks, !grant <m> <a>, !revoke <m>, !join <c>, !part <c>, !def <f> = <d>, !search <f>, !undef <f>"
-                            case Administrator | Normal =>
+                                "!idents, !grant <account> <access>, !revoke <account>, !join <c>, !part <c>, !def <f> = <d>, !search <f>, !undef <f>"
+                            case Administrator | Regular =>
                                 "!search <fact>, !def <f> = <d>, !undef <f>"
                             case Guest =>
                                 "Simply msg the bot privately with a factoid handle and he will answer the factoid content"
@@ -77,8 +67,6 @@ class Manager(ctl: Control) extends Module(ctl) with Auth {
                         false
                     case _ =>
                         true
-                } else {
-                    true
                 }
             case _ =>
                 true
@@ -86,17 +74,17 @@ class Manager(ctl: Control) extends Module(ctl) with Auth {
         }
     }
 
-    def revokeAccess(from: Prefix, mask: String) {
+    def revokeAccess(from: Prefix, account: String) {
         try {
-            val stmt = ctl.db.prepareStatement("DELETE FROM irc_users WHERE mask = ?", mask)
+            val stmt = ctl.db.prepareStatement("DELETE FROM irc_users WHERE account = ?", account)
 
             if (stmt.executeUpdate > 0) {
-                ctl.p.msg(from.nick, "Access revoked to mask '"+mask+"'")
+                ctl.p.msg(from.nick, "Access revoked to account '"+account+"'")
             } else {
-                ctl.p.msg(from.nick, "Mask '"+mask+"' not found")
+                ctl.p.msg(from.nick, "Account '"+account+"' not found")
             }
 
-            ctl.maskStore.reload
+            ctl.idents.clearIdentAuthCache
 
             stmt.close
         } catch {
@@ -104,14 +92,14 @@ class Manager(ctl: Control) extends Module(ctl) with Auth {
                 ctl.db.handleException(ex)
         }
     }
-    def grantAccess(from: Prefix, mask: String, access: String) {
+    def grantAccess(from: Prefix, account: String, access: String) {
         try {
             val level = UserLevel.fromString(access).toString
 
-            ctl.db.prepareStatement("REPLACE irc_users SET mask = ?, level = ?", mask, level).executeUpdate
-            ctl.p.msg(from.nick, "Access '"+level+"' granted to mask '"+mask+"'")
+            ctl.db.prepareStatement("REPLACE irc_users SET account = ?, level = ?", account, level).executeUpdate
+            ctl.p.msg(from.nick, "Access '"+level+"' granted to account '"+account+"'")
 
-            ctl.maskStore.reload
+            ctl.idents.clearIdentAuthCache
 
         } catch {
             case ex: Exception =>
@@ -122,19 +110,19 @@ class Manager(ctl: Control) extends Module(ctl) with Auth {
 
     def listAccesses(from: Prefix) = {
         try {
-            val stmt = ctl.db.prepareStatement("SELECT mask, level FROM irc_users")
+            val stmt = ctl.db.prepareStatement("SELECT account, level FROM irc_users")
             var users: List[String] = Nil;
 
             for (result <- stmt.executeQuery) {
-                users = "'"+result.getString("mask")+"' ("+result.getString("level")+")" :: users
+                users = "'"+result.getString("account")+"' ("+result.getString("level")+")" :: users
                 if (users.size == 3) {
-                    ctl.p.msg(from.nick, users.mkString("Masks: ", ",", ""))
+                    ctl.p.msg(from.nick, users.mkString("Accounts: ", ",", ""))
                     users = Nil
                 }
             }
 
             if (users.size != 0) {
-                ctl.p.msg(from.nick, users.mkString("Masks: ", ",", ""))
+                ctl.p.msg(from.nick, users.mkString("Accounts: ", ",", ""))
             }
 
             stmt.close
@@ -143,4 +131,14 @@ class Manager(ctl: Control) extends Module(ctl) with Auth {
                 ctl.db.handleException(ex)
         }
     }
+
+    // Help info
+    val commandsHelp = Map(
+      "idents"  -> (Set(Manager: UserLevel), "!idents",            "Display the ACL"),
+      "say"     -> (Set(Manager: UserLevel), "!say <to> <msg>",    "Write <msg> to <to>"), 
+      "grant"   -> (Set(Manager: UserLevel), "!grant <acc> <lvl>", "Grant level <lvl> to account <acc>"),
+      "revoke"  -> (Set(Manager: UserLevel), "!revoke <acc>",      "Revoke level from account <acc>"),
+      "join"    -> (Set(Manager: UserLevel), "!join <chan>",       "Ask the bot to join <chan>"),
+      "part"    -> (Set(Manager: UserLevel), "!part <chan>",       "Ask the bot to leave <chan>")
+    )
 }
