@@ -4,6 +4,7 @@ config-test.xml
 config-prod.xml
 bot.log
 target/
+web/.config.php
 lib_managed/
 src_managed/
 project/boot/
