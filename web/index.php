@@ -26,7 +26,7 @@ try {
         <form method="POST" action="">
             <fieldset>
                 <legend>Search Database</legend>
-                <input type="text" name="q" value="" />
+                <input type="text" name="q" value="<?php if(!empty($_POST['q'])) echo htmlentities($_POST['q'], ENT_QUOTES); ?>" />
                 <input type="submit" name="search" value="Search" />
             </fieldset>
         </form>
