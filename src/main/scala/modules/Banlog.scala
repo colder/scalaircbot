@@ -36,15 +36,15 @@ case class BanLogEntry(id: Int = 0, banner: Ident, banned: Ident, tpe: BanType, 
   }
 
   lazy val explainString = {
-    val end = if (isPermanent) {
-      "the end of time"
-    } else {
-      dateEnd match {
-        case Some(de) =>
-          Helpers.dateAsString(de)+"     "
-        case None =>
+    val end = dateEnd match {
+      case Some(de) =>
+        Helpers.dateAsString(de)+"     "
+      case None =>
+        if (isPermanent) {
+          "the end of time          "
+        } else {
           Helpers.dateAsString(expectedDateEnd)+" (exp)"
-      }
+        }
     }
 
     "["+(if (tpe == Mute) "mute" else "ban ")+"] at "+Helpers.dateAsString(dateStart)+" by "+banner.value+" until "+end +". Reason: "+reason
