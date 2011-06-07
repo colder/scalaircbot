@@ -41,7 +41,7 @@ case class BanLogEntry(id: Int = 0, banner: Ident, banned: Ident, tpe: BanType, 
         Helpers.dateAsString(de)+"     "
       case None =>
         if (isPermanent) {
-          "the end of time          "
+          "the end of time         "
         } else {
           Helpers.dateAsString(expectedDateEnd)+" (exp)"
         }
