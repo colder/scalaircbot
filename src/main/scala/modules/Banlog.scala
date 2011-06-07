@@ -29,16 +29,22 @@ case class BanLogEntry(id: Int = 0, banner: Ident, banned: Ident, tpe: BanType, 
 
   }
 
+  def isPermanent = duration.toSeconds < 0
+
   def hasExpired = {
-    expectedDateEnd.before(new Date())
+    !isPermanent && expectedDateEnd.before(new Date())
   }
 
   lazy val explainString = {
-    val end = dateEnd match {
-      case Some(de) =>
-        Helpers.dateAsString(de)+"     "
-      case None =>
-        Helpers.dateAsString(expectedDateEnd)+" (exp)"
+    val end = if (isPermanent) {
+      "the end of time"
+    } else {
+      dateEnd match {
+        case Some(de) =>
+          Helpers.dateAsString(de)+"     "
+        case None =>
+          Helpers.dateAsString(expectedDateEnd)+" (exp)"
+      }
     }
 
     "["+(if (tpe == Mute) "mute" else "ban ")+"] at "+Helpers.dateAsString(dateStart)+" by "+banner.value+" until "+end +". Reason: "+reason
@@ -91,7 +97,7 @@ class BanLog(val ctl: Control) extends Module(ctl) with Commands with SimpleHelp
               if (activeEntries.isEmpty) {
                 ctl.p.msg(from.nick, "Nobody is currently being banned/muted.")
               } else {
-                ctl.p.msg(from.nick, "Banlist ("+activeEntries.size+"): "+activeEntries.map(ae =>  ae.tpe+" "+ae.banned.value+" until "+Helpers.dateAsString(ae.expectedDateEnd)).mkString(", "))
+                ctl.p.msg(from.nick, "Banlist ("+activeEntries.size+"): "+activeEntries.map(ae =>  ae.tpe+" "+ae.banned.value+" until "+(if(ae.isPermanent) "the end of time" else Helpers.dateAsString(ae.expectedDateEnd))).mkString(", "))
               }
             }
             false
@@ -173,7 +179,13 @@ class BanLog(val ctl: Control) extends Module(ctl) with Commands with SimpleHelp
         // 2) Check for existing ban/mute
         banLog.find(be => be.banned == identbanned && be.tpe == tpe && be.dateEnd.isEmpty) match {
           case Some(banEntry) =>
-            val term = if (banEntry.expectedDateEnd.after(newBanEntry.expectedDateEnd)) {
+            val term = if (banEntry.isPermanent && newBanEntry.isPermanent) {
+              "at the same time as"
+            } else if (banEntry.isPermanent) {
+              "before"
+            } else if (newBanEntry.isPermanent) {
+              "after"
+            } else if (banEntry.expectedDateEnd.after(newBanEntry.expectedDateEnd)) {
               "after"
             } else {
               "before"
@@ -197,7 +209,7 @@ class BanLog(val ctl: Control) extends Module(ctl) with Commands with SimpleHelp
 
         storeBanEntry(newBanEntry)
 
-        optmsg(newBanEntry.tpe.toString.capitalize+" for account "+identbanned.value+" in place for "+duration+", and logged.")
+        optmsg(newBanEntry.tpe.toString.capitalize+" for account "+identbanned.value+" in place and logged. Duration:"+duration)
 
       case (None, _) =>
         optmsg("Could not find any ident associated with "+who)
@@ -281,7 +293,7 @@ class BanLog(val ctl: Control) extends Module(ctl) with Commands with SimpleHelp
               banned    = Ident(row.getString("account_user")),
               tpe       = if (row.getString("account_user") == "mute") Mute else Ban,
               dateStart = row.getTimestamp("date_start"),
-              duration  = Seconds(row.getInt("duration")),
+              duration  = if (row.getInt("duration") < 0) Permanent else Seconds(row.getInt("duration")),
               dateEnd   = if (row.getDate("date_end") eq null) None else Some(row.getTimestamp("date_end")),
               reason    = row.getString("reason")
           )
