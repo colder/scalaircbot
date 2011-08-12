@@ -28,7 +28,7 @@ class MonitorHashPHP(val ctl: Control) extends Module(ctl) with Commands with Si
                     addProfanity(from.nick, msg)
                     if (!isGranted(from, Manager, Administrator)) {
                         if (isAbusingProfanity(from.nick)) {
-                            mute(from, Minutes(30), "to prevent profanity abuse")
+                            mute(from, Minutes(30), "profanity")
                         } else {
                             ctl.p.msg(from.nick, "Please keep the profanity out of "+channel+", thanks.")
                         }
@@ -41,7 +41,7 @@ class MonitorHashPHP(val ctl: Control) extends Module(ctl) with Commands with Si
 
                 if (isFlooding(from.nick)) {
                     if (!isGranted(from, Regular, Manager, Administrator)) {
-                        mute(from, Minutes(5), "to prevent them from flooding the channel more")
+                        mute(from, Minutes(1), "mute")
                     }
                     messages -= from.nick
                 } else {
@@ -186,7 +186,16 @@ class MonitorHashPHP(val ctl: Control) extends Module(ctl) with Commands with Si
 
     def mute(prefix: Prefix, duration: Duration, reason: String) = { 
         ctl.banlog.registerMuteSilent(prefix.nick, duration, "Automatic: "+reason)
-        ctl.p.msg(channel, prefix.nick + " has been muted for "+duration+" "+reason+".")
+        ctl.factoids.lookup(reason+"message") match {
+          case Some(factoid) =>
+            try {
+              ctl.p.msg(channel, String.format(factoid, prefix.nick, duration.toString))
+            } catch {
+              case e =>
+                ctl.error("Cound not format: "+e.getMessage)
+            }
+          case None =>
+        }
     }
 
     // Help info
