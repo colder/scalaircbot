@@ -27,7 +27,7 @@ class Factoids(val ctl: Control) extends Module(ctl) with Commands with SimpleHe
                     case xs =>
                 }
             } else {
-                msg.split("[:,] ?!\\+", 2).toList match {
+                msg.split("[:, ] ?!\\+", 2).toList match {
                     case nick :: fact :: Nil =>
                         if (isGranted(from, Regular, Manager, Administrator)) {
                             lookup(fact) match {
