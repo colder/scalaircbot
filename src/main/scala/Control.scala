@@ -121,7 +121,7 @@ class Control(val cfg: Config) extends Actor {
 
                             register(false)
                         case EOF =>
-                            continue = false
+                            l.err("Connection EOF, should reconnect soon...")
 
                         case _ =>
                     }
