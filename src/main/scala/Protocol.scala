@@ -245,7 +245,7 @@ class Protocol(ctl: Control) {
         mode(channel, "-q", mask)
 
     def kick(channel: Channel, nick: Nick, reason: String) =
-        ctl.writeLine("KICK "+channel+" "+nick.name+" :"+reason)
+        ctl.writeLine("KICK "+channel.name+" "+nick.name+" :"+reason)
 
     def msg(to: AbsChannel, msg: String) = {
         val msgl = if (msg.length > 450) msg.substring(0, 445)+"..." else msg

@@ -58,7 +58,7 @@ class Control(val cfg: Config) extends Actor {
         registerModule(new Manager(this))
         registerModule(new MonitorHashPHP(this))
         registerModule(new RussianRoulette(this))
-        registerModule(new Yahoo(this))
+        //registerModule(new Yahoo(this))
         registerModule(factoids)
 
     }
