@@ -189,7 +189,7 @@ class MonitorHashPHP(val ctl: Control) extends Module(ctl) with Commands with Si
         ctl.factoids.lookup(reason+"message") match {
           case Some(factoid) =>
             try {
-              ctl.p.msg(channel, String.format(factoid, prefix.nick, duration.toString))
+              ctl.p.msg(channel, String.format(factoid, prefix.nick.name, duration.toString))
             } catch {
               case e =>
                 ctl.error("Cound not format: "+e.getMessage)
