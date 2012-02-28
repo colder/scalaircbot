@@ -23,7 +23,13 @@ class Factoids(val ctl: Control) extends Module(ctl) with Commands with SimpleHe
             } else if (msg.startsWith("!tell")) {
                 words(msg, 4) match {
                     case "!tell" :: nick :: "about" :: fact :: Nil =>
-                        sendFact(Nick(nick), fact, false)
+                      lookup(fact) match {
+                        case Some(x) =>
+                          ctl.p.msg(Nick(nick), x)
+                          ctl.p.msg(from.nick,  "Told "+nick+" about "+fact)
+                        case _ =>
+                          ctl.p.msg(from.nick,  "I don't know anything about "+fact+", sorry.")
+                      }
                     case xs =>
                 }
             } else {
