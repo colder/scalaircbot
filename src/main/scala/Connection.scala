@@ -65,6 +65,7 @@ class Connection(host: String, port: Int, logger: Logger) extends Actor {
       logger out line
 
       socket write ByteString(line)
+      socket write EOL
 
       cleanMessages()
 
