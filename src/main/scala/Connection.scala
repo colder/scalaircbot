@@ -47,6 +47,7 @@ class Connection(host: String, port: Int, logger: Logger) extends Actor {
       state(IO Chunk bytes)
 
     case IO.Closed(rHandle, cause) =>
+      logger err cause.toString
       throw new Exception("Socket closed!")
 
     case StartListening =>
