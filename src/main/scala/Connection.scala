@@ -23,7 +23,10 @@ class Connection(host: String, port: Int, logger: Logger) extends Actor {
 
   def dispatchLine(line : String) = {
     logger in line
-    listeners foreach { _ ! ReadLine(line) }
+
+    for (l <- listeners) {
+      l ! ReadLine(line)
+    }
   }
 
   var state: IterateeRef[Unit] = null
@@ -44,7 +47,7 @@ class Connection(host: String, port: Int, logger: Logger) extends Actor {
       state(IO Chunk bytes)
 
     case IO.Closed(rHandle, cause) =>
-      state(IO EOF cause)
+      throw new Exception("Socket closed!")
 
     case StartListening =>
       listeners += sender
