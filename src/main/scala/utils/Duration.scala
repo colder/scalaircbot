@@ -4,9 +4,9 @@ package utils
 import java.util.regex.Pattern
 
 abstract class Duration(seconds: Int) {
-    val toSeconds = seconds
+  val toSeconds = seconds
 
-    override def toString = seconds+" second"+(if (seconds > 1) "s" else "")
+  override def toString = seconds+" second"+(if (seconds > 1) "s" else "")
 }
 
 case object Now extends Duration(0)
