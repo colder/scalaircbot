@@ -181,7 +181,7 @@ class Protocol(ctl: Control) {
                     val num = Integer.parseInt(x)
                     if (num > 400) Error(num, xs) else Numeric(num, xs)
                 } catch {
-                    case e => Unknown(params)
+                    case e: Throwable => Unknown(params)
                 }
             case _ =>
                 Unknown(params)

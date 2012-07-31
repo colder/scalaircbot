@@ -1,8 +1,6 @@
 package ircbot
 package modules
 
-import scala.actors.Actor
-
 import InnerProtocol._
 import utils._
 
@@ -98,7 +96,7 @@ class Idents(val ctl: Control) extends Module(ctl) with NickTracker with Command
     private def request(nick: Nick) = {
         execute {
             ctl.p.msg(Nick.NickServ, "INFO "+nick.name)
-        } onReply {
+        } waitUntilReply {
             case Notice(Prefix(Nick.NickServ, _, _), msg) if (msg startsWith "Information on") && (msg.toLowerCase contains nick.name.toLowerCase) =>
                 msg.split("\\(account ").toList match {
                     case _ :: acc :: Nil =>

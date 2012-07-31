@@ -9,6 +9,7 @@ import akka.actor._
 class Control(val cfg: Config) extends Actor {
   val l = new TerminalColorLogger();
 
+
   /* Connection actor used to send/receive messages */
   var c: ActorRef = null // Connection
 
@@ -83,12 +84,14 @@ class Control(val cfg: Config) extends Actor {
       c ! Start
 
     } catch {
-      case e =>
+      case e: Throwable =>
         l.err("Unnexpected error: "+e);
         shutdown
         throw e
     }
   }
+
+  def getContext = context
 
   /* Register a specific module */
   def registerModule(module: Module) {

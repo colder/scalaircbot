@@ -1,6 +1,16 @@
 package ircbot
 package utils
 
+import InnerProtocol._
+import scala.concurrent.util.duration._
+import scala.concurrent.util.{Duration => ScalaDuration}
+import scala.concurrent.Future
+import akka.util.Timeout
+import akka.actor._
+import akka.pattern.ask
+import scala.reflect.ClassTag
+
+
 trait Commands {
     val ctl: Control
 
@@ -36,54 +46,59 @@ trait Commands {
     object Words3 extends ExWords(3)
     object Words4 extends ExWords(4)
 
-    class DoAndReply[T](body: => Unit) {
-        import InnerProtocol._
+    class DoAndReply(body: => Unit, timeout: ScalaDuration = 20 seconds) {
+        class ListeningActor[T : ClassTag](pf: PartialFunction[Message, Option[T]]) extends Actor {
+          override def preStart = {
+            ctl.c ! StartListening
+          }
 
-        def onReply[T](pf: PartialFunction[Message, Option[T]])(implicit ms: Long = 20000): Option[T] = {
-            import scala.actors.Actor._
-            import scala.actors.TIMEOUT
+          var futureSender: ActorRef = null
 
-            val a = actor {
-              receive {
-                case _ => {
-                  var res: Option[T] = None
-                  ctl.c ! StartListening
+          def receive = {
+            case ReadLine(line) =>
+              val msg = ctl.p.parseLine(line)
 
-                  body
-
-                  var continue = true
-                  var ts = ms
-
-                  while(continue && ts > 0) {
-                      val tinit = System.currentTimeMillis
-
-                      receiveWithin(ts) {
-                        case ReadLine(line) =>
-                          val msg = ctl.p.parseLine(line)
-
-                          if (pf isDefinedAt msg) {
-                            pf(msg) match {
-                              case Some(r) =>
-                                res = Some(r)
-                                continue = false
-                              case None =>
-                            }
-                          }
-                        case TIMEOUT =>
-                          continue = false
-                      }
-
-                      ts -= System.currentTimeMillis - tinit
-                  }
-
-                  ctl.c ! StopListening
-
-                  sender ! res
+              if (pf isDefinedAt msg) {
+                pf(msg) match {
+                  case Some(r) =>
+                    if (futureSender ne null) {
+                      futureSender ! r
+                      ctl.getContext.stop(self)
+                    }
+                  case None =>
                 }
               }
-            }
+            case Start =>
+              futureSender = sender
+          }
 
-            (a !? "go").asInstanceOf[Option[T]]
+          override def postStop() {
+            super.postStop()
+
+            ctl.c ! StopListening
+          }
+        }
+
+        def onReply[T : ClassTag](pf: PartialFunction[Message, Option[T]]): Future[T] = {
+          val la = ctl.getContext.actorOf(Props(new ListeningActor(pf)), name = "la")
+          ask(la, Start)(Timeout(timeout)).mapTo[T]
+        }
+
+        def waitUntilReply[T : ClassTag](pf: PartialFunction[Message, Option[T]]): Option[T] = {
+          import scala.concurrent.Await
+          import scala.concurrent.util.duration._
+
+          implicit val ec = ctl.getContext.dispatcher
+
+          val f = onReply(pf) map {
+            x =>
+              Some(x)
+          } recover {
+            case x: Throwable =>
+              None
+          }
+
+          Await.result(f, timeout)
         }
     }
 

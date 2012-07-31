@@ -5,7 +5,7 @@ import utils._
 
 class Protocol(val ctl: Control) extends Module(ctl) with Commands {
     def handleMessage(msg: Message) = msg match {
-        case Msg(from, to, m) if from.nick == "freenode-connect" =>
+        case Msg(from, to, m) if from.nick == Nick("freenode-connect") =>
             // ignore VERSION messages from freenode-connect
             false
         case Invite(from, chan) =>

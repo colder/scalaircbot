@@ -155,7 +155,7 @@ class BanLog(val ctl: Control) extends Module(ctl) with Commands with SimpleHelp
             try {
               ctl.p.msg(n, String.format(banmessage, tpe.alt, duration.toString, reason))
             } catch {
-              case e =>
+              case e: Throwable =>
                 ctl.error("Cound not format: "+e.getMessage)
             }
           case None =>

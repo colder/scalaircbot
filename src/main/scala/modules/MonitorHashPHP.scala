@@ -191,7 +191,7 @@ class MonitorHashPHP(val ctl: Control) extends Module(ctl) with Commands with Si
             try {
               ctl.p.msg(channel, String.format(factoid, prefix.nick.name, duration.toString))
             } catch {
-              case e =>
+              case e: Throwable =>
                 ctl.error("Cound not format: "+e.getMessage)
             }
           case None =>
