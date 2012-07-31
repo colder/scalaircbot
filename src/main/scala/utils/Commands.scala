@@ -81,7 +81,9 @@ trait Commands {
 
         def onReply[T : ClassTag](pf: PartialFunction[Message, Option[T]]): Future[T] = {
           val la = ctl.getContext.actorOf(Props(new ListeningActor(pf)), name = "la")
-          ask(la, Start)(Timeout(timeout)).mapTo[T]
+          val f = ask(la, Start)(Timeout(timeout)).mapTo[T]
+          body
+          f
         }
 
         def waitUntilReply[T : ClassTag](pf: PartialFunction[Message, Option[T]]): Option[T] = {
@@ -98,7 +100,13 @@ trait Commands {
               None
           }
 
-          Await.result(f, timeout)
+          try {
+            Await.result(f, timeout)
+          } catch {
+            case e: Throwable =>
+              ctl.l.err("execute { .. } onReply { .. } timeout!")
+              None
+          }
         }
     }
 
