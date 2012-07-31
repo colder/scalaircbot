@@ -16,7 +16,7 @@ trait SimpleHelp extends HelpInfo {
   val commandsHelp: Map[String, (Set[UserLevel], String, String)]
 
   override def generalHelpInfo(access: UserLevel) = {
-    commandsHelp collect { case (cmd, (accesses, proto, desc)) if accesses contains access => (proto, desc) } toSeq
+    commandsHelp.collect{ case (cmd, (accesses, proto, desc)) if accesses contains access => (proto, desc) }.toSeq
   }
 
   override def specificHelp = {

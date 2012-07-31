@@ -39,7 +39,7 @@ class Yahoo(val ctl: Control) extends Module(ctl) with Commands with Http {
             val res = httpRequest("http://boss.yahooapis.com/ysearch/web/v1/"+pattern_enc+"?appid=WD0C1ofIkY21IlNLjmFl6lC.l7cdajU-&format=xml&filter=-porn-hate&count=5&style=raw")
             val xml = scala.xml.XML.load(res)
 
-            val results = (xml \\  "result") map { r => SearchResult((r \ "abstract").text, (r \ "url").text) } toList
+            val results = (xml \\  "result").map { r => SearchResult((r \ "abstract").text, (r \ "url").text) }.toList
 
             SearchResults(results, Integer.parseInt((xml \ "resultset_web" \ "@totalhits").text))
 

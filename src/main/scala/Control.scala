@@ -69,11 +69,11 @@ class Control(val cfg: Config) extends Actor {
 
       l.info("Loading Ident Module...")
       /* Freenode Idents attached to Nicks */
-      idents = new modules.Idents(this)
+      idents   = new modules.Idents(this)
       trackers.registerNickTracker(idents)
 
       l.info("Loading BanLog Module...")
-      banlog = new modules.BanLog(this)
+      banlog   = new modules.BanLog(this)
 
       l.info("Loading Factoid Module...")
       factoids = new modules.Factoids(this)
@@ -96,7 +96,7 @@ class Control(val cfg: Config) extends Actor {
   /* Register a specific module */
   def registerModule(module: Module) {
     modulesList = modulesList ::: module :: Nil
-    module init
+    module.init
   }
 
   /* Register all default modules */
@@ -180,7 +180,7 @@ class Control(val cfg: Config) extends Actor {
   def shutdown() {
     l.info("Shutting down...");
 
-    shutdownModules
+    modulesList.foreach(_.shutdown)
 
     if (db != null) {
       db.close
@@ -207,15 +207,5 @@ class Control(val cfg: Config) extends Actor {
   /* Send a message */
   def writeLine(line: String) {
     c ! InnerProtocol.WriteLine(line)
-  }
-
-  /* call shutdown on all modules */
-  def shutdownModules = {
-    modulesList foreach { _ shutdown }
-  }
-
-  /* Inform modules that we got reconnected */
-  def reconnectModules = {
-    modulesList foreach { _ reconnect }
   }
 }
