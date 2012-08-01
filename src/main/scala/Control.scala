@@ -4,11 +4,17 @@ import sql.MysqlConnection
 
 import utils._
 import akka.actor._
+import akka.actor.SupervisorStrategy._
+import scala.concurrent.util.duration._
+import language.postfixOps
 
 // Main controlling class
 class Control(val cfg: Config) extends Actor {
   val l = new TerminalColorLogger();
 
+  override val supervisorStrategy = OneForOneStrategy(maxNrOfRetries = 5, withinTimeRange = 10 minutes) {
+    case _: ConnectionClosedException => Restart
+  }
 
   /* Connection actor used to send/receive messages */
   var c: ActorRef = null // Connection
@@ -53,7 +59,7 @@ class Control(val cfg: Config) extends Actor {
 
   def init {
     try {
-      c        = context.actorOf(Props(new Connection(cfg.hostHost, cfg.hostPort, l)), name = "c")
+      c        = context.actorOf(Props(new Connection(cfg.hostHost, cfg.hostPort, l)), name = "connection")
 
       l.info("Loading Protocol...")
       p        = new Protocol(this)

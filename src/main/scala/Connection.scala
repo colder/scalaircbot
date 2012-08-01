@@ -10,6 +10,8 @@ import utils.Logger
 
 import InnerProtocol._
 
+class ConnectionClosedException(cause: String) extends Exception(cause);
+
 class Connection(host: String, port: Int, logger: Logger) extends Actor {
   var messages: List[Long] = Nil
   val timespan  = 10
@@ -33,22 +35,23 @@ class Connection(host: String, port: Int, logger: Logger) extends Actor {
 
   val EOL = ByteString("\r\n")
 
+  override def preStart = {
+    socket = IOManager(context.system).connect(host, port)
+    state = IO.IterateeRef.sync()
+
+    def readOneLine: IO.Iteratee[Unit] =
+      for(msg <- IO takeUntil EOL) yield dispatchLine(msg.utf8String)
+
+    state flatMap (_ => IO repeat readOneLine)
+  }
+
   def receive = {
-    case Start =>
-      socket = IOManager(context.system).connect(host, port)
-      state = IO.IterateeRef.sync()
-
-      def readOneLine: IO.Iteratee[Unit] =
-        for(msg <- IO takeUntil EOL) yield dispatchLine(msg.utf8String)
-
-      state flatMap (_ => IO repeat readOneLine)
-
     case IO.Read(rHandle, bytes) =>
       state(IO Chunk bytes)
 
     case IO.Closed(rHandle, cause) =>
       logger err cause.toString
-      throw new Exception("Socket closed!")
+      throw new ConnectionClosedException(cause.toString)
 
     case StartListening =>
       listeners += sender

@@ -79,7 +79,7 @@ trait Commands {
     }
 
     def onReply[T : ClassTag](pf: PartialFunction[Message, Option[T]]): Future[T] = {
-      val la = ctl.getContext.actorOf(Props(new ListeningActor(pf)), name = "la")
+      val la = ctl.getContext.actorOf(Props(new ListeningActor(pf)))
       val f = ask(la, Start)(Timeout(timeout)).mapTo[T]
       body
       f
