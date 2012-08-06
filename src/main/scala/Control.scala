@@ -53,13 +53,13 @@ class Control(val cfg: Config) extends Actor {
 
   override def preStart = {
     init
-
-    c ! StartListening
   }
 
   def init {
     try {
-      c        = context.actorOf(Props(new Connection(cfg.hostHost, cfg.hostPort, l)), name = "connection")
+      c = context.actorOf(Props(new Connection(cfg.hostHost, cfg.hostPort, l)), name = "connection")
+
+      c ! StartListening
 
       l.info("Loading Protocol...")
       p        = new Protocol(this)
