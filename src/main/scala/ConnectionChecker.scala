@@ -26,7 +26,7 @@ class ConnectionChecker(c: ActorRef, timeout: Duration) extends Actor {
         tries += 1
         c ! WriteLine("PING :"+System.currentTimeMillis)
       } else {
-        c ! Kill
+        context.parent ! ReinitConnection
       }
   }
 

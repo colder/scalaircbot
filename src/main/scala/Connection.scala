@@ -39,6 +39,8 @@ class Connection(host: String, port: Int, logger: Logger) extends Actor {
     socket = IOManager(context.system).connect(host, port)
     state = IO.IterateeRef.sync()
 
+    listeners += context.parent
+
     def readOneLine: IO.Iteratee[Unit] =
       for(msg <- IO takeUntil EOL) yield dispatchLine(msg.utf8String)
 

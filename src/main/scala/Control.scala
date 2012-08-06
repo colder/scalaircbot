@@ -14,6 +14,7 @@ class Control(val cfg: Config) extends Actor {
 
   override val supervisorStrategy = OneForOneStrategy(maxNrOfRetries = 5, withinTimeRange = 10 minutes) {
     case _: ConnectionClosedException => Restart
+    case _: ActorKilledException => Restart
   }
 
   /* Connection actor used to send/receive messages */
@@ -41,12 +42,6 @@ class Control(val cfg: Config) extends Actor {
   /* List holding the loaded modules */
   var modulesList: List[Module] = Nil
 
-  /* Stores the time of the last message to detect disconnects */
-  var lastMessage: Long = -1;
-
-  /* Stores the time of the last message to detect disconnects */
-  var connected: Boolean = false;
-
   import InnerProtocol._
 
   var registering = false
@@ -59,8 +54,6 @@ class Control(val cfg: Config) extends Actor {
   def init {
     try {
       c = context.actorOf(Props(new Connection(cfg.hostHost, cfg.hostPort, l)), name = "connection")
-
-      c ! StartListening
 
       cc = context.actorOf(Props(new ConnectionChecker(c, 1.minutes)), name = "conchecker")
 
@@ -137,8 +130,6 @@ class Control(val cfg: Config) extends Actor {
 
   def receive = {
     case ReadLine(line) =>
-      lastMessage = System.currentTimeMillis/1000
-
       val msg = p.parseLine(line)
 
       // Special message handling
@@ -174,7 +165,12 @@ class Control(val cfg: Config) extends Actor {
 
       dispatchMessage(msg)
     case ReinitConnection =>
-      l.warn("Blup connection");
+      registering = false
+      registered  = false
+
+      modulesList.foreach(_.reconnect)
+
+      c ! Kill
   }
 
   override def postStop() {
