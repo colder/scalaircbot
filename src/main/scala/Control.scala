@@ -17,7 +17,8 @@ class Control(val cfg: Config) extends Actor {
   }
 
   /* Connection actor used to send/receive messages */
-  var c: ActorRef = null // Connection
+  var c: ActorRef  = null // Connection
+  var cc: ActorRef = null // ConnectionChecker
 
   /* Wrapping around the socket to implement the IRC protocol */
   var p: Protocol = null
@@ -60,6 +61,8 @@ class Control(val cfg: Config) extends Actor {
       c = context.actorOf(Props(new Connection(cfg.hostHost, cfg.hostPort, l)), name = "connection")
 
       c ! StartListening
+
+      cc = context.actorOf(Props(new ConnectionChecker(c, 1.minutes)), name = "conchecker")
 
       l.info("Loading Protocol...")
       p        = new Protocol(this)
