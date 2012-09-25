@@ -1,3 +1,5 @@
+seq(assemblySettings : _*)
+
 name := "scalaircbot"
 
 version := "1.0"

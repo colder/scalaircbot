@@ -36,6 +36,8 @@ class Connection(host: String, port: Int, logger: Logger) extends Actor {
   val EOL = ByteString("\r\n")
 
   override def preStart = {
+    logger info "Starting Connection..."
+
     socket = IOManager(context.system).connect(host, port)
     state = IO.IterateeRef.sync()
 
