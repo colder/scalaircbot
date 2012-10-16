@@ -150,12 +150,14 @@ class Control(val cfg: Config) extends Actor {
           l.warn("Nick is already in use!")
 
           nick = nick.nextNick
+          p.nick(nick)
 
           register(true)
         case Error(437, _) =>
           l.warn("Nick is unavailable!")
 
           nick = nick.nextNick
+          p.nick(nick)
 
           register(false)
         case EOF =>
@@ -197,8 +199,10 @@ class Control(val cfg: Config) extends Actor {
 
   def register(release: Boolean) {
     if (release && !cfg.authPass.equals("")) {
-      nick = cfg.authNick;
-      p.msg(Nick.NickServ, "release "+nick.name+" "+cfg.authPass)
+      nick = cfg.authNick
+
+      p.msg(Nick.NickServ, "ghost "+nick.name+" "+cfg.authPass)
+
       p.nick(nick)
     } else {
       if (!cfg.authPass.equals("")) {
