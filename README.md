@@ -3,7 +3,7 @@ scalaircbot
 
 Simple IRC bot written in scala
 
-++Installation
+## Installation
 Welcome to the scalaircbot wiki!
 
 Run the sql scripts. in sql/
