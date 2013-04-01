@@ -4,9 +4,8 @@ scalaircbot
 Simple IRC bot written in scala
 
 ## Installation
-Welcome to the scalaircbot wiki!
 
-Run the sql scripts. in sql/
+Run the latest sql script in database/
 
 To run the master branch:
 * first time run: <code>sbt update</code> to grab the dependencies
