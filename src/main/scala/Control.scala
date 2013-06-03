@@ -178,14 +178,10 @@ class Control(val cfg: Config) extends Actor {
 
       dispatchMessage(msg)
     case ReinitConnection =>
-      registering = false
-      registered  = false
+      c ! akka.actor.PoisonPill
 
       initializeConnection()
 
-      modulesList.foreach(_.reconnect)
-
-      c ! akka.actor.PoisonPill
   }
 
   override def postStop() {
