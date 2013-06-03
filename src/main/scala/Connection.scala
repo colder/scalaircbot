@@ -12,10 +12,12 @@ import InnerProtocol._
 
 class ConnectionClosedException(cause: String) extends Exception(cause);
 
-class Connection(host: String, port: Int, logger: Logger) extends Actor {
+class Connection(host: String, port: Int, logger: Logger, name: String) extends Actor {
   var messages: List[Long] = Nil
   val timespan  = 10
   val threshold = 20
+
+  val id = ConnectionCounter.getNext
 
   type Listener = ActorRef
   var listeners = Set[Listener]()
@@ -36,7 +38,7 @@ class Connection(host: String, port: Int, logger: Logger) extends Actor {
   val EOL = ByteString("\r\n")
 
   override def preStart = {
-    logger info "Starting Connection..."
+    logger info "[%d] Starting Connection...".format(name)
 
     socket = IOManager(context.system).connect(host, port)
     state = IO.IterateeRef.sync()
@@ -54,11 +56,12 @@ class Connection(host: String, port: Int, logger: Logger) extends Actor {
       state(IO Chunk bytes)
 
     case IO.Closed(rHandle, cause) =>
-      logger err cause.toString
+      logger err "[%d] Error: ".format(name)+cause.toString
       throw new ConnectionClosedException(cause.toString)
 
     case StartListening =>
       listeners += sender
+
     case StopListening =>
       listeners -= sender
 
@@ -66,8 +69,8 @@ class Connection(host: String, port: Int, logger: Logger) extends Actor {
       addMessage()
 
       if (isFlooding) {
-          logger.warn("Flood detected, delaying...");
-          Thread.sleep(2000)
+        logger warn "[%d] Flood detected, delaying...".format(name)
+        Thread.sleep(2000)
       }
 
       logger out line

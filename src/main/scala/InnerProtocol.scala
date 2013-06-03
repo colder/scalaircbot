@@ -1,6 +1,8 @@
 package ircbot
 
-/* Inner protocol between Control, Connection and the connection checker */
+import akka.actor.ActorRef
+
+/* Inner protocol between Control, Connection and the ConnectionChecker */
 object InnerProtocol {
   object Start
   object StartListening
@@ -14,5 +16,8 @@ object InnerProtocol {
   case object ReinitConnection;
   // Reconnect to the server
   case object StopChecker;
+
+  case class TrackConnection(c: ActorRef)
+  case class UntrackConnection(c: ActorRef)
 }
 

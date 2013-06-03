@@ -53,9 +53,9 @@ class Control(val cfg: Config) extends Actor {
 
   def init {
     try {
-      c = context.actorOf(Props(new Connection(cfg.hostHost, cfg.hostPort, l)), name = "connection")
+      cc = context.actorOf(Props(new ConnectionChecker(1.minutes)), name = "conchecker")
 
-      cc = context.actorOf(Props(new ConnectionChecker(c, 1.minutes)), name = "conchecker")
+      initializeConnection()
 
       l.info("Loading Protocol...")
       p        = new Protocol(this)
@@ -91,6 +91,17 @@ class Control(val cfg: Config) extends Actor {
         shutdown
         throw e
     }
+  }
+
+  def initializeConnection() {
+      if (c ne null) {
+        cc ! UntrackConnection(c)
+      }
+
+      val cName = "connection"+ConnectionCounter.getNext
+      c = context.actorOf(Props(new Connection(cfg.hostHost, cfg.hostPort, l, cName)), name = cName)
+
+      cc ! TrackConnection(c)
   }
 
   def getContext = context
@@ -170,9 +181,11 @@ class Control(val cfg: Config) extends Actor {
       registering = false
       registered  = false
 
+      initializeConnection()
+
       modulesList.foreach(_.reconnect)
 
-      c ! Kill
+      c ! akka.actor.PoisonPill
   }
 
   override def postStop() {
