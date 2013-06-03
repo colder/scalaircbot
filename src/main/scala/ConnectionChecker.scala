@@ -2,9 +2,7 @@ package ircbot
 
 import akka.actor._
 import utils.Logger
-import scala.concurrent.util.duration._
-import scala.concurrent.util.Duration
-
+import scala.concurrent.duration._
 
 import InnerProtocol._
 class ConnectionChecker(c: ActorRef, timeout: Duration) extends Actor {

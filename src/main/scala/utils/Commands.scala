@@ -2,8 +2,7 @@ package ircbot
 package utils
 
 import InnerProtocol._
-import scala.concurrent.util.duration._
-import scala.concurrent.util.{Duration => ScalaDuration}
+import scala.concurrent.duration._
 import scala.concurrent.Future
 import akka.util.Timeout
 import akka.actor._
@@ -46,7 +45,7 @@ trait Commands {
   object Words3 extends ExWords(3)
   object Words4 extends ExWords(4)
 
-  class DoAndReply(body: => Unit, timeout: ScalaDuration = 20 seconds) {
+  class DoAndReply(body: => Unit, timeout: FiniteDuration = 20 seconds) {
     class ListeningActor[T : ClassTag](pf: PartialFunction[Message, Option[T]]) extends Actor {
       override def preStart = {
         ctl.c ! StartListening
@@ -87,7 +86,6 @@ trait Commands {
 
     def waitUntilReply[T : ClassTag](pf: PartialFunction[Message, Option[T]]): Option[T] = {
       import scala.concurrent.Await
-      import scala.concurrent.util.duration._
 
       implicit val ec = ctl.getContext.dispatcher
 

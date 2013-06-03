@@ -5,7 +5,7 @@ import sql.MysqlConnection
 import utils._
 import akka.actor._
 import akka.actor.SupervisorStrategy._
-import scala.concurrent.util.duration._
+import scala.concurrent.duration._
 import language.postfixOps
 
 // Main controlling class
