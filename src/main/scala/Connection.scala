@@ -17,8 +17,6 @@ class Connection(host: String, port: Int, logger: Logger, name: String) extends 
   val timespan  = 10
   val threshold = 20
 
-  val id = ConnectionCounter.getNext
-
   type Listener = ActorRef
   var listeners = Set[Listener]()
 

@@ -57,7 +57,7 @@ class Control(val cfg: Config) extends Actor {
 
   def init {
     try {
-      cc = context.actorOf(Props(new ConnectionChecker(10.seconds, l)), name = "conchecker")
+      cc = context.actorOf(Props(new ConnectionChecker(1.minutes, l)), name = "conchecker")
 
       initializeConnection()
 
@@ -196,8 +196,8 @@ class Control(val cfg: Config) extends Actor {
 
       dispatchMessage(msg)
     case ReinitConnection =>
+      l.err("Reinitializing connection...")
       c ! akka.actor.PoisonPill
-
       initializeConnection()
 
   }

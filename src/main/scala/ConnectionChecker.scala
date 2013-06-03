@@ -28,11 +28,9 @@ class ConnectionChecker(timeout: Duration, l: Logger) extends Actor {
     case ReceiveTimeout =>
       if (tries < maxTries) {
         tries += 1
-        // Try to revive connections
-        l info "[checker] Trying to revive connections..."
+        l info "[checker] Trying to revive connection ("+tries+"/"+maxTries+")..."
         trackedConnections.foreach(_ ! WriteLine("PING :"+System.currentTimeMillis))
       } else {
-        l info "[checker] Asking for a reconnect"
         tries = 0
         context.parent ! ReinitConnection
       }
