@@ -44,8 +44,12 @@ class Control(val cfg: Config) extends Actor {
 
   import InnerProtocol._
 
-  var registering = false
-  var registered  = false
+  abstract class RegisterState
+  case object Registered extends RegisterState
+  case object Registering extends RegisterState
+  case object Unregistered extends RegisterState
+
+  var registerState: RegisterState = Unregistered
 
   override def preStart = {
     init
@@ -145,32 +149,43 @@ class Control(val cfg: Config) extends Actor {
 
       // Special message handling
       msg match {
-        case _: Notice if !registering && !registered =>
+        case _: Notice if registerState == Unregistered =>
           // First Notice => register
-          register(false)
-          registering = true
+          doRegister()
+
         case Numeric(1, _) =>
           // Registration successful
-          registered = true
-          registering = false
+          registerState = Registered
+
         case Numeric(376, _) =>
           // End of MOTD, let's join channels
-          for(chan <- cfg.channels)
+          for(chan <- cfg.channels) {
             p.join(chan)
+          }
+
+        case Error(451, _) =>
+          if (registerState == Registered) {
+            doRegister()
+
+            modulesList.foreach(_.reconnect)
+          }
+
         case Error(433, _) =>
           l.warn("Nick is already in use!")
 
           nick = nick.nextNick
           p.nick(nick)
 
-          register(true)
+          doRelease()
+
         case Error(437, _) =>
           l.warn("Nick is unavailable!")
 
           nick = nick.nextNick
           p.nick(nick)
 
-          register(false)
+          doRegister()
+
         case EOF =>
           l.err("Connection EOF, should reconnect soon...")
         case _ =>
@@ -206,20 +221,22 @@ class Control(val cfg: Config) extends Actor {
   }
 
 
-  def register(release: Boolean) {
-    if (release && !cfg.authPass.equals("")) {
-      nick = cfg.authNick
-
-      p.msg(Nick.NickServ, "ghost "+nick.name+" "+cfg.authPass)
-
-      p.nick(nick)
-    } else {
-      if (!cfg.authPass.equals("")) {
-        p.pass(":"+cfg.authIdent.value+" "+cfg.authPass)
-      }
-      p.user(cfg.authNick.name, cfg.authNick.name, cfg.authNick.name, cfg.authRealName)
-      p.nick(nick)
+  def doRegister() {
+    if (cfg.authPass != "") {
+      p.pass(":"+cfg.authIdent.value+" "+cfg.authPass)
     }
+
+    p.user(cfg.authNick.name, cfg.authNick.name, cfg.authNick.name, cfg.authRealName)
+
+    p.nick(nick)
+
+    registerState = Registering
+  }
+
+  def doRelease() {
+    assert(cfg.authPass != "")
+
+    p.msg(Nick.NickServ, "ghost "+cfg.authNick.name+" "+cfg.authPass)
   }
 
   /* Send a message */
