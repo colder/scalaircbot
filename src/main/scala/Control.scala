@@ -53,7 +53,7 @@ class Control(val cfg: Config) extends Actor {
 
   def init {
     try {
-      cc = context.actorOf(Props(new ConnectionChecker(1.minutes)), name = "conchecker")
+      cc = context.actorOf(Props(new ConnectionChecker(10.seconds)), name = "conchecker")
 
       initializeConnection()
 

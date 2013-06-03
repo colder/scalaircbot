@@ -38,7 +38,7 @@ class Connection(host: String, port: Int, logger: Logger, name: String) extends 
   val EOL = ByteString("\r\n")
 
   override def preStart = {
-    logger info "[%d] Starting Connection...".format(name)
+    logger info "[%s] Starting Connection...".format(name)
 
     socket = IOManager(context.system).connect(host, port)
     state = IO.IterateeRef.sync()
@@ -56,7 +56,7 @@ class Connection(host: String, port: Int, logger: Logger, name: String) extends 
       state(IO Chunk bytes)
 
     case IO.Closed(rHandle, cause) =>
-      logger err "[%d] Error: ".format(name)+cause.toString
+      logger err "[%s] Error: ".format(name)+cause.toString
       throw new ConnectionClosedException(cause.toString)
 
     case StartListening =>
@@ -69,7 +69,7 @@ class Connection(host: String, port: Int, logger: Logger, name: String) extends 
       addMessage()
 
       if (isFlooding) {
-        logger warn "[%d] Flood detected, delaying...".format(name)
+        logger warn "[%s] Flood detected, delaying...".format(name)
         Thread.sleep(2000)
       }
 
