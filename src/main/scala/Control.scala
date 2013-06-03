@@ -57,7 +57,7 @@ class Control(val cfg: Config) extends Actor {
 
   def init {
     try {
-      cc = context.actorOf(Props(new ConnectionChecker(10.seconds)), name = "conchecker")
+      cc = context.actorOf(Props(new ConnectionChecker(10.seconds, l)), name = "conchecker")
 
       initializeConnection()
 
@@ -163,28 +163,31 @@ class Control(val cfg: Config) extends Actor {
             p.join(chan)
           }
 
-        case Error(451, _) =>
+          if (nick != cfg.authNick) {
+            // if we had to change nick, let's ask for a release now
+            doRelease()
+          }
+
+        case Error(451, _) => // "You have not registered"
+          // Typically a reply to a ping after a reconnect
           if (registerState == Registered) {
+            // We thus re-register
             doRegister()
 
             modulesList.foreach(_.reconnect)
           }
 
-        case Error(433, _) =>
+        case Error(433, _) => // "Nick already in use"
           l.warn("Nick is already in use!")
 
           nick = nick.nextNick
           p.nick(nick)
 
-          doRelease()
-
-        case Error(437, _) =>
+        case Error(437, _) => // "Nick is unavailable"
           l.warn("Nick is unavailable!")
 
           nick = nick.nextNick
           p.nick(nick)
-
-          doRegister()
 
         case EOF =>
           l.err("Connection EOF, should reconnect soon...")

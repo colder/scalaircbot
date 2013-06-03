@@ -5,7 +5,7 @@ import utils.Logger
 import scala.concurrent.duration._
 
 import InnerProtocol._
-class ConnectionChecker(timeout: Duration) extends Actor {
+class ConnectionChecker(timeout: Duration, l: Logger) extends Actor {
   var tries    = 0
   var maxTries = 3
 
@@ -29,8 +29,11 @@ class ConnectionChecker(timeout: Duration) extends Actor {
       if (tries < maxTries) {
         tries += 1
         // Try to revive connections
+        l info "[checker] Trying to revive connections..."
         trackedConnections.foreach(_ ! WriteLine("PING :"+System.currentTimeMillis))
       } else {
+        l info "[checker] Asking for a reconnect"
+        tries = 0
         context.parent ! ReinitConnection
       }
   }
