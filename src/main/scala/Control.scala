@@ -57,7 +57,7 @@ class Control(val cfg: Config) extends Actor {
 
   def init {
     try {
-      cc = context.actorOf(Props(new ConnectionChecker(1.minutes, l)), name = "conchecker")
+      cc = context.actorOf(Props(new ConnectionChecker(2.minutes, l)), name = "conchecker")
 
       initializeConnection()
 
@@ -170,8 +170,9 @@ class Control(val cfg: Config) extends Actor {
 
         case Error(451, _) => // "You have not registered"
           // Typically a reply to a ping after a reconnect
-          if (registerState == Registered) {
+          if (registerState != Unregistered) {
             // We thus re-register
+            l.warn("Attempting re-registering..")
             doRegister()
 
             modulesList.foreach(_.reconnect)
