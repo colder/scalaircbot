@@ -28,9 +28,10 @@ class User(ctl: Control, val nick: Nick) {
   def this(ctl: Control, prefix: Prefix) = {
     this(ctl, prefix.nick)
   }
-
+  /*
   val ident = ctl.idents.getIdent(nick)
   val level = ctl.idents.getAuth(nick)
+  */
 }
 
 
