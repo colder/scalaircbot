@@ -43,6 +43,8 @@ class Connection(host: String,
     messages.filter{ _ > nowMs()-timespan*1000 }.length >= threshold
   }
 
+  var buffer: String = "";
+
   def receive = {
     case CommandFailed(_: Connect) =>
       logError(s"[$name] Error: Connection failed")
@@ -84,16 +86,26 @@ class Connection(host: String,
           logWarning(s"[$name] write failed (O/S buffer was full)")
 
         case Received(data) =>
-           data.utf8String.split("\r\n").foreach{ line =>
-             logIn(line)
+          val str = buffer + data.utf8String
+          var lines = str.split("\r\n").toList
 
-             ctl ! ReceivedMessage(IrcHelpers.rawCommandToMessage(line))
-           }
+          if (!str.endsWith("\r\n")) {
+            buffer = lines.last
+            lines = lines.dropRight(1)
+          } else {
+            buffer = ""
+          }
+
+          lines.foreach { line =>
+            logIn(line)
+
+            ctl ! ReceivedMessage(IrcHelpers.rawCommandToMessage(line))
+          }
 
         case _: ConnectionClosed =>
-           logWarning(s"[$name] Connection closed!")
-           ctl ! Disconnected
-           context stop self
+          logWarning(s"[$name] Connection closed!")
+          ctl ! Disconnected
+          context stop self
       }
   }
 

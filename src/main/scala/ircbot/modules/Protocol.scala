@@ -6,44 +6,40 @@ import utils._
 import InnerProtocol._
 
 class Protocol(val cfg: Config,
-               val logger: ActorRef,
-               val ctl: ActorRef) extends Module(logger, ctl) {
+               val ctl: ActorRef) extends SimpleModule {
 
-  abstract class RegisterState
-  case object Registered extends RegisterState
-  case object Registering extends RegisterState
-  case object Unregistered extends RegisterState
+  var state = BotState(cfg.authNick)
 
-  var registerState: RegisterState = Unregistered
-
-  var nick: Nick = cfg.authNick
+  def newState(st: BotState) {
+    state = st
+  }
 
   override def onConnect() = {
-    nick = cfg.authNick
+    newState(state.copy(nick = state.origNick))
   }
 
   override def onDisconnect() = {
-    registerState = Unregistered
+    newState(state.copy(registeredState = Unregistered))
   }
 
   def onMessage(msg: Message) = msg match {
-    case From(_, Notice(_, _)) if registerState == Unregistered =>
+    case From(_, Notice(_, _)) if state.registeredState == Unregistered =>
       // First Notice => register
       doRegister()
 
     case From(_, Numeric(1, _)) =>
       // Registration successful
-      registerState = Registered
+      newState(state.copy(registeredState = Registered))
 
     case Numeric(`RPL_ENDOFMOTD`, _) =>
       // End of MOTD, let's join channels
       for(chan <- cfg.channels) {
-        ctl ! SendMessage(Join(chan))
+        send(Join(chan))
       }
 
     case Error(`ERR_NOTREGISTERED`, _) => // "You have not registered"
       // Typically a reply to a ping after a reconnect
-      if (registerState != Unregistered) {
+      if (state.registeredState != Unregistered) {
         // We thus re-register
         logWarning("Attempting re-registering..")
         doRegister()
@@ -52,20 +48,25 @@ class Protocol(val cfg: Config,
     case Error(`ERR_NICKNAMEINUSE`, _) => // "Nick already in use"
       logWarning("Nick is already in use!")
 
-      nick = nick.nextNick
-      ctl ! SendMessage(NickChange(nick))
+      newState(state.copy(nick = state.nick.nextNick))
+      send(NickChange(state.nick))
 
     case Error(`ERR_UNAVAILRESOURCE`, _) => // "Nick is unavailable"
       logWarning("Nick is unavailable!")
 
-      nick = nick.nextNick
-      ctl ! SendMessage(NickChange(nick))
-
-    case Ping(msg) =>
-      ctl ! SendMessage(Pong(msg))
+      newState(state.copy(nick = state.nick.nextNick))
+      send(NickChange(state.nick))
 
     case From(_, Ping(msg)) =>
-      ctl ! SendMessage(Pong(msg))
+      send(Pong(msg))
+
+    case From(UserMask(nick, _, _), Msg(_, "test")) =>
+      if (isGranted(nick, Guest)) {
+        send(Msg(nick, "It works!"))
+      }
+
+    case Ping(msg) =>
+      send(Pong(msg))
 
     case _ =>
   }
@@ -73,14 +74,14 @@ class Protocol(val cfg: Config,
 
   def doRegister() {
     if (cfg.authPass != "") {
-      ctl ! SendMessage(Pass(cfg.authIdent.value, cfg.authPass))
+      send(Pass(cfg.authIdent.value, cfg.authPass))
     }
 
-    ctl ! SendMessage(UserC(cfg.authNick.name, cfg.authNick.name, cfg.authNick.name, cfg.authRealName))
+    send(UserC(cfg.authNick.name, cfg.authNick.name, cfg.authNick.name, cfg.authRealName))
 
-    ctl ! SendMessage(NickChange(nick))
+    send(NickChange(state.nick))
 
-    registerState = Registering
+    newState(state.copy(registeredState = Registering))
   }
 
   val RPL_ENDOFMOTD = 376

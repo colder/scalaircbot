@@ -4,8 +4,15 @@ import utils._
 
 /* Inner protocol between Control, Connection and the Modules */
 object InnerProtocol {
-  object Connected
-  object Disconnected
+  case object Connected
+  case object Disconnected
+
+  // Communication between modules
+  case class SendTo(module: String, msg: Any)
+  case class Dispatch(msg: AnyRef, sendToSender: Boolean = false)
+
+  // Garbage collection to allow modules to perform GC tasks
+  case object GC
 
   // Write a line to the server
   case class SendRawMessage(line: String)
@@ -14,5 +21,13 @@ object InnerProtocol {
   case class ReceivedMessage(msg: Message)
 
   case class Log(loglvl: LogLevels.LogLevel, msg: String)
+
+  // Listen/reply
+  case class ListenUntil(onMessage: PartialFunction[Any, Any])
+
+  // Auth/Idents
+  case class AuthUserLevel(n: Nick, lvl: UserLevel)
+  case class AuthGetUserLevel(n: Nick)
+
 }
 

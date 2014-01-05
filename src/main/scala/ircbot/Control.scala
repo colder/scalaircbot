@@ -15,6 +15,8 @@ class Control(val cfg: Config) extends Actor with RemoteLogger {
   /* Connection actor used to send/receive messages */
   var c: ActorRef  = null // Connection
 
+  val ctl = self
+
   val logger = context.actorOf(Props(new Logger(cfg)))
 
   /* Database connection */
@@ -24,27 +26,39 @@ class Control(val cfg: Config) extends Actor with RemoteLogger {
                                                 cfg.dbUser,
                                                 cfg.dbPass)
 
-  var listeners: List[ActorRef] = List(
-
-  )
-
-  var modules: List[(String, ActorRef)] = List(
-    "protocol" -> context.actorOf(Props(new Protocol(cfg, logger, self)))
+  var modules: Map[String, ActorRef] = Map(
+    "protocol" -> context.actorOf(Props(new Protocol(cfg, self))),
+    "auth"     -> context.actorOf(Props(new Auth(self)))
   )
 
   def dispatch(f: ActorRef => Unit) {
     modules.foreach{ case (name, mod) => f(mod) }
-    listeners.foreach(f)
   }
 
   def receive = {
     case Connected =>
-      logInfo("Connected!")
       dispatch(_ ! Connected)
 
     case Disconnected =>
-      logInfo("Disonnected!")
       dispatch(_ ! Disconnected)
+
+    case GC =>
+      logInfo("Performing GC")
+      dispatch(_ ! GC)
+
+    case Dispatch(msg, toSender) =>
+      modules.collect {
+        case (name, mod) if toSender || (mod != sender) =>
+          mod forward msg
+      }
+
+    case SendTo(module, msg) =>
+      if (modules contains module) {
+        modules(module) forward msg
+      }
+
+    case l : Log =>
+      logger forward l
 
     case ReceivedMessage(msg) =>
       dispatch(_ ! ReceivedMessage(msg))
@@ -54,7 +68,6 @@ class Control(val cfg: Config) extends Actor with RemoteLogger {
 
     case SendRawMessage(data) =>
       c ! SendRawMessage(data)
-
   }
 
   override def preStart = {

@@ -8,3 +8,6 @@ web/.config.php
 lib_managed/
 src_managed/
 project/boot/
+
+*.swp
+*.swo

@@ -41,7 +41,7 @@ object LogLevels {
 trait RemoteLogger {
   import LogLevels._
 
-  val logger: ActorRef
+  val ctl: ActorRef
 
   def logOut(msg: String)     = log(OUT,  msg)
   def logIn(msg: String)      = log(IN,   msg)
@@ -50,6 +50,6 @@ trait RemoteLogger {
   def logInfo(msg: String)    = log(INFO, msg)
 
   def log(level: LogLevel, msg: String) = {
-    logger ! Log(level, msg)
+    ctl ! Log(level, msg)
   }
 }
