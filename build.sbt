@@ -23,6 +23,8 @@ libraryDependencies ++= Seq(
     "commons-httpclient" % "commons-httpclient" % "3.1",
     "commons-logging" % "commons-logging" % "1.1.1",
     "mysql" % "mysql-connector-java" % "5.1.15",
-    "com.typesafe.akka" %% "akka-actor" % "2.2.3"
+    "com.typesafe.akka" %% "akka-actor" % "2.2.3",
+    "com.typesafe.slick" %% "slick" % "2.0.0",
+    "org.slf4j" % "slf4j-nop" % "1.6.4"
 )
 

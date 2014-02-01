@@ -18,6 +18,13 @@ case class UserMask(nick: Nick, username: Option[String], hostname: Option[Strin
   def onlyNickMask = UserMask(nick, None, None)
 }
 
+object NickMask {
+  def unapply(m: Mask): Option[(Nick)] = m match {
+    case UserMask(nick, _, _) => Some((nick))
+    case _ => None
+  }
+}
+
 case class ServerMask(_hostname: String) extends Mask {
   val onick = None
   val username = None
@@ -96,22 +103,22 @@ case class Channel(name: String) extends AbsChannel
 /* Different messages types */
 sealed abstract class Message
 
-final case class From(mask: Mask, msg: Message) extends Message
-final case class Unknown(tokens: List[String]) extends Message
-final case class Error(code: Int, tokens: List[String]) extends Message
-final case class Numeric(code: Int, tokens: List[String]) extends Message
-final case class Msg(to: AbsChannel, msg: String) extends Message
-final case class Mode(channel: Channel, modes: String, nick: Nick) extends Message
-final case class Invite(nick: Nick, channel: Channel) extends Message
-final case class Part(channel: Channel) extends Message
-final case class Join(channel: Channel) extends Message
-final case class Quit(optMessage: Option[String]) extends Message
-final case class NickChange(nick: Nick) extends Message
-final case class Ping(msg: String) extends Message
-final case class Pong(msg: String) extends Message
-final case class Notice(to: AbsChannel, msg: String) extends Message
-final case class UserC(user: String, hostname: String, servername: String, realname: String) extends Message
-final case class Pass(ident: String, pass: String) extends Message
+case class From(mask: Mask, msg: Message) extends Message
+case class Unknown(tokens: List[String]) extends Message
+case class Error(code: Int, tokens: List[String]) extends Message
+case class Numeric(code: Int, tokens: List[String]) extends Message
+case class Msg(to: AbsChannel, msg: String) extends Message
+case class Mode(channel: Channel, modes: String, nick: Nick) extends Message
+case class Invite(nick: Nick, channel: Channel) extends Message
+case class Part(channel: Channel) extends Message
+case class Join(channel: Channel) extends Message
+case class Quit(optMessage: Option[String]) extends Message
+case class NickChange(nick: Nick) extends Message
+case class Ping(msg: String) extends Message
+case class Pong(msg: String) extends Message
+case class Notice(to: AbsChannel, msg: String) extends Message
+case class UserC(user: String, hostname: String, servername: String, realname: String) extends Message
+case class Pass(ident: String, pass: String) extends Message
 
 
 object IrcHelpers {

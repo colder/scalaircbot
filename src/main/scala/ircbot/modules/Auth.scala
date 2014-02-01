@@ -16,7 +16,7 @@ class Auth(val ctl: ActorRef) extends Module {
 
   def receive = {
     case ReceivedMessage(imsg) => imsg match {
-      case From(UserMask(Nick.NickServ, _, _), Notice(_, msg)) =>
+      case From(NickMask(Nick.NickServ), Notice(_, msg)) =>
         val NickIdent = """Information on (.+) \(account (.+)\):""".r
 
         msg match {
@@ -37,15 +37,15 @@ class Auth(val ctl: ActorRef) extends Module {
 
         }
 
-      case From(UserMask(nick, _, _), Part(channel)) =>
+      case From(NickMask(nick), Part(channel)) =>
         users -= nick
         requests -= nick
 
-      case From(UserMask(nick, _, _), Quit(_)) =>
+      case From(NickMask(nick), Quit(_)) =>
         users -= nick
         requests -= nick
 
-      case From(UserMask(nick, _, _), NickChange(newnick)) =>
+      case From(NickMask(nick), NickChange(newnick)) =>
         if (users contains nick) {
           users += newnick -> users(nick)
           users -= nick
