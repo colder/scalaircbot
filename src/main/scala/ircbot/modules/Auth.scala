@@ -8,8 +8,6 @@ import scala.concurrent.duration._
 import utils._
 import InnerProtocol._
 
-import scala.collection.mutable.Map
-
 class Auth(val ctl: ActorRef) extends Module {
   val users = new CachedMap[Nick, UserLevel](30.minutes)
   val requests = new CachedMap[Nick, Set[ActorRef]](20.seconds)
@@ -71,6 +69,6 @@ class Auth(val ctl: ActorRef) extends Module {
       users.gc()
       requests.gc()
 
-    case _ => 
+    case _ =>
   }
 }

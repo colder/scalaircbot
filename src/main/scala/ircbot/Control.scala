@@ -28,7 +28,8 @@ class Control(val cfg: Config) extends Actor with RemoteLogger {
 
   var modules: Map[String, ActorRef] = Map(
     "protocol" -> context.actorOf(Props(new Protocol(cfg, self))),
-    "auth"     -> context.actorOf(Props(new Auth(self)))
+    "auth"     -> context.actorOf(Props(new Auth(self))),
+    "factoids" -> context.actorOf(Props(new Factoids(cfg, self)))
   )
 
   def dispatch(f: ActorRef => Unit) {

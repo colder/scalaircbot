@@ -27,6 +27,19 @@ abstract class Module extends Actor with RemoteLogger {
 
     lvl.hierarchy >= lvl.hierarchy
   }
+
+  def requireGranted[T](nick: Nick, lvl: UserLevel)(onGranted: => T) {
+    if (isGranted(nick, lvl)) {
+      onGranted
+    } else {
+      send(Msg(nick, "Permission denied: this command requires at least the "+lvl+" right!"))
+    }
+  }
+
+  def words(str: String): List[String] = words(str, 0)
+
+  def words(str: String, limit: Int): List[String] =
+    str.split("[:,. ]", limit).toList
 }
 
 abstract class SimpleModule extends Module {
