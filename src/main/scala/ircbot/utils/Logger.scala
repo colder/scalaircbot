@@ -4,26 +4,27 @@ package utils
 import InnerProtocol.Log
 
 import akka.actor._
-import java.text.SimpleDateFormat
-import java.util.Date
+import org.joda.time.DateTime
+import org.joda.time.format.DateTimeFormat
 
 class Logger(cfg: Config) extends Actor {
   import LogLevels._
 
+  val format = DateTimeFormat.forPattern("dd-MMM-yy HH:mm:ss")
+
   def receive = {
     case Log(lvl, msg) =>
-      val format = lvl match {
-        case OUT  => "%s \033[34m[>]\033[0m %s"
-        case IN   => "%s \033[32m[<]\033[0m %s"
-        case ERR  => "%s \033[31m[!]\033[0m %s"
-        case WARN => "%s \033[33m[w]\033[0m %s"
-        case INFO => "%s \033[32m[i]\033[0m %s"
+      val icon = lvl match {
+        case OUT  => Console.CYAN    + "[>]" + Console.RESET
+        case IN   => Console.GREEN   + "[<]" + Console.RESET
+        case ERR  => Console.RED     + "[!]" + Console.RESET
+        case WARN => Console.YELLOW  + "[w]" + Console.RESET
+        case INFO => Console.MAGENTA + "[i]" + Console.RESET
       }
 
-      val df = new SimpleDateFormat("dd-MMM-yy HH:mm:ss")
-      def date = df.format(new Date())
+      val date = format.print(new DateTime())
 
-      println(format.format(date, msg))
+      println(f"$date $icon $msg")
   }
 }
 

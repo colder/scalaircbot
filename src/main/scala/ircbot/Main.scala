@@ -10,6 +10,8 @@ object Main {
     } else {
         val system  = ActorSystem("ircbot")
         val control = system.actorOf(Props(new Control(new Config(args(0)))), name = "control")
+
+        control ! InnerProtocol.Init
     }
   }
 

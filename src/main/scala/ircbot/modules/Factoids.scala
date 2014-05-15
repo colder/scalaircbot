@@ -5,6 +5,7 @@ import akka.actor._
 import utils._
 import InnerProtocol._
 import scala.slick.driver.MySQLDriver.simple._
+import org.joda.time.DateTime
 
 import db.Helpers._
 import db._
@@ -33,7 +34,6 @@ class Factoids(val db: Database,
     case From(NickMask(nick), Msg(to: Nick, msg)) if to != nick =>
       words(msg, 2) match {
         case "!def" :: rest :: Nil =>
-          send(Msg(nick, "Defining factoid .."))
           rest.split("=", 2).toList match {
             case fact :: description :: Nil =>
               requireGranted(nick, Regular) {
@@ -62,10 +62,11 @@ class Factoids(val db: Database,
               send(Msg(nick, "Found "+facts.size+" results: "+facts.map(_.token).take(10).mkString(", ")+(if(facts.size > 10) "..." else "")))
             }
           }
-        case _ =>
+        case _ if !msg.startsWith("!") =>
           lookup(msg).orElse(Some("?")).foreach { factoid =>
             send(Msg(nick, factoid))
           }
+        case _ =>
       }
 
 
@@ -82,7 +83,7 @@ class Factoids(val db: Database,
     db.withSession { implicit s =>
       factoidByToken(name).firstOption match {
         case Some(f) =>
-          val newF = f.copy(description = description)
+          val newF = f.copy(description = description, dateLastEdit = new DateTime())
           factoidByToken(name).update(newF)
         case None =>
           factoids += Factoid(name, description)
@@ -97,6 +98,16 @@ class Factoids(val db: Database,
   }
 
   def search(name: String): List[Factoid] = {
-    Nil
+    db.withSession { implicit s =>
+      factoids.filter(_.description like s"%$name%").list
+    }
   }
+
+  override val helpEntries = List(
+    HelpEntry(Regular, "def",       "!def <fact> = <msg>",  "Defines/Overwrite the factoid <fact> with the new text <msg>"),
+    HelpEntry(Regular, "undef",     "!undef <fact>",        "Deletes factoid <fact>"),
+    HelpEntry(Guest,   "search",    "!search <desc>",       "Searches for <desc> if factoids"),
+    HelpEntry(Guest,   "<fact>",    "<fact>",               "Display factoid <fact>"),
+    HelpEntry(Regular, "!+<fact>",  "!+<fact>",             "Public command: display factoid <fact> (Alt: nick, !+fact)")
+  )
 }

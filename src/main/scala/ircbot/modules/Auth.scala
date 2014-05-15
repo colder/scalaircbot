@@ -12,31 +12,33 @@ import db.Helpers
 
 class Auth(val db: Database,
            val ctl: ActorRef) extends Module {
-  val users = new CachedMap[Nick, User](30.minutes)
-  val requests = new CachedMap[Nick, Set[ActorRef]](20.seconds)
+  val users    = new CachedMap[Nick, User](30.minutes)
+  val requests = new CachedMap[Nick, Set[ActorRef]](30.seconds)
 
-  def receive = {
+  override def receive = {
     case ReceivedMessage(imsg) => imsg match {
       case From(NickMask(Nick.NickServ), Notice(_, msg)) =>
         val NickIdent = """Information on (.+) \(account (.+)\):""".r
 
         msg match {
-          case NickIdent(nick, ident) =>
-            val n = Nick(nick.replaceAll("\\p{C}", ""))
-            val i = Ident(ident.replaceAll("\\p{C}", ""))
+          case NickIdent(rawNick, rawAccount) =>
+            val nick    = Nick(rawNick.replaceAll("\\p{C}", ""))
+            val account = rawAccount.replaceAll("\\p{C}", "")
 
             val lvl = db.withSession { implicit s =>
-              Helpers.users.filter(_.account === i.value).map(_.userLevel).firstOption.getOrElse(Guest)
+              Helpers.users.filter(_.account === account).map(_.userLevel).firstOption.getOrElse(Guest)
             }
 
-            val u = User(n, lvl)
-            users += n -> u
+            logInfo(s"Authenticated ${nick.name}/$account to level: $lvl")
 
-            requests.getOrElse(n, Set()).foreach { a =>
-              a ! u
+            val user = User(nick, lvl)
+            users += nick -> user
+
+            requests.getOrElse(nick, Set()).foreach { aref =>
+              aref ! user
             }
 
-            requests -= n
+            requests -= nick
 
           case _ =>
 
@@ -61,7 +63,8 @@ class Auth(val db: Database,
           requests -= nick
         }
 
-      case _ =>
+      case m =>
+        super.receive(m)
     }
 
     case AuthGetUser(nick) =>

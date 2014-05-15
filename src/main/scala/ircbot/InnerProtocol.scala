@@ -4,6 +4,9 @@ import utils._
 
 /* Inner protocol between Control, Connection and the Modules */
 object InnerProtocol {
+  // Initialization
+  case object Init
+
   case object Connected
   case object Disconnected
 
@@ -27,5 +30,9 @@ object InnerProtocol {
 
   // Auth/Idents
   case class AuthGetUser(n: Nick)
+
+  // Help
+  case object HelpCollect
+  case class HelpEntries(entries: Seq[HelpEntry])
 }
 

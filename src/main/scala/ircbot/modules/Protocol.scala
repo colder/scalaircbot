@@ -31,6 +31,11 @@ class Protocol(val cfg: Config,
       // Registration successful
       newState(state.copy(registeredState = Registered))
 
+    case Invite(nick, chan) =>
+      requireGranted(nick, Administrator) {
+        send(Join(chan))
+      }
+
     case Numeric(`RPL_ENDOFMOTD`, _) =>
       // End of MOTD, let's join channels
       for(chan <- cfg.channels) {

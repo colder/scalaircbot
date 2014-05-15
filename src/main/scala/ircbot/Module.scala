@@ -10,7 +10,7 @@ import scala.concurrent._
 import ExecutionContext.Implicits.global
 import java.util.concurrent.TimeoutException
 
-abstract class Module extends Actor with RemoteLogger {
+abstract class Module extends Actor with RemoteLogger with HelpInfo {
   val ctl: ActorRef
 
   implicit val tm = Timeout(10.seconds)
@@ -45,24 +45,36 @@ abstract class Module extends Actor with RemoteLogger {
 
   def words(str: String, limit: Int): List[String] =
     str.split("[:,. ]", limit).toList
-}
 
-abstract class SimpleModule extends Module {
   def receive = {
-    case ReceivedMessage(msg) =>
-      onMessage(msg)
-
     case Connected =>
       onConnect()
 
     case Disconnected =>
       onDisconnect()
 
+    case Init =>
+      onInit()
+
     case _ =>
   }
 
-  def onMessage(message: Message): Unit
+  def onInit(): Unit = {
+    ctl ! SendTo("help", HelpEntries(helpEntries))
+  }
 
   def onDisconnect(): Unit = {}
   def onConnect(): Unit = {}
+
+}
+
+abstract class SimpleModule extends Module with HelpInfo {
+  override def receive = {
+    case ReceivedMessage(msg) =>
+      onMessage(msg)
+
+    case m => super.receive(m)
+  }
+
+  def onMessage(message: Message): Unit
 }
