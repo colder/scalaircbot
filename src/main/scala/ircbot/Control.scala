@@ -37,6 +37,7 @@ class Control(val cfg: Config) extends Actor with RemoteLogger {
     "auth"     -> context.actorOf(Props(new Auth(db, self))),
     "factoids" -> context.actorOf(Props(new Factoids(db, self))),
     "acl"      -> context.actorOf(Props(new ACL(db, self))),
+    "op"       -> context.actorOf(Props(new OpControl(self))),
     "help"     -> context.actorOf(Props(new Help(self)))
   )
 
@@ -55,8 +56,10 @@ class Control(val cfg: Config) extends Actor with RemoteLogger {
       dispatch(_ ! Disconnected)
 
     case GC =>
-      logInfo("Performing GC")
       dispatch(_ ! GC)
+
+    case Tick =>
+      dispatch(_ ! Tick)
 
     case Dispatch(msg, toSender) =>
       modules.collect {

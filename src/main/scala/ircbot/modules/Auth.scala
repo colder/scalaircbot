@@ -33,7 +33,7 @@ class Auth(val db: Database,
               } yield(u.userLevel)).firstOption.getOrElse(Guest)
             }
 
-            logInfo(s"Authenticated ${nick.name}/$account to level: $lvl")
+            logInfo(s"Authenticated ${nick.name} (account: $account) to level: $lvl")
 
             val user = User(account, lvl)
             users += nick -> user

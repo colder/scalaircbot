@@ -16,6 +16,7 @@ object InnerProtocol {
 
   // Garbage collection to allow modules to perform GC tasks
   case object GC
+  case object Tick
 
   // Write a line to the server
   case class SendRawMessage(line: String)
@@ -32,7 +33,12 @@ object InnerProtocol {
   case class AuthGetUser(n: Nick)
 
   // Help
-  case object HelpCollect
   case class HelpEntries(entries: Seq[HelpEntry])
+
+  // OP Request
+  case class RequestOp(chan: Channel)
+
+
+  case object RequestBotState
 }
 

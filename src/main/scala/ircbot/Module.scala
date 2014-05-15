@@ -45,6 +45,16 @@ abstract class Module extends Actor with RemoteLogger with HelpInfo {
     }
   }
 
+  def currentState: Future[BotState] = {
+    ctl.ask(SendTo("protocol", RequestBotState))(2.seconds).mapTo[BotState]
+  }
+
+  def requireOP(chan: Channel)(whenOp: => Any) = {
+    ctl.ask(SendTo("op", RequestOp(chan)))(10.seconds).foreach { r =>
+      whenOp
+    }
+  }
+
   def words(str: String): List[String] = words(str, 0)
 
   def words(str: String, limit: Int): List[String] =

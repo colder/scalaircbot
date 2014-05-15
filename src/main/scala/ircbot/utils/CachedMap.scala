@@ -59,4 +59,9 @@ class CachedMap[A,B](timeout: FiniteDuration) {
     }
   }
 
+  def empty() = {
+    times = Map()
+    values = Map()
+  }
+
 }

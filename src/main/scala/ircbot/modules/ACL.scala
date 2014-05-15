@@ -22,10 +22,10 @@ class ACL(val db: Database,
             extractLevel(level) match {
               case Some(newLevel) =>
                 db.withSession { implicit s =>
-                  val uq = users.filter(_.account == account)
+                  val uq = users.filter(_.account === account)
                   uq.firstOption match {
                     case Some(u) =>
-                      uq.update(u.copy(userLevel = newLevel))   
+                      uq.update(u.copy(userLevel = newLevel))
                     case None =>
                       users += User(account, newLevel)
                   }
@@ -34,42 +34,44 @@ class ACL(val db: Database,
                 send(Msg(nick, s"Unknown level $level"))
             }
           }
-        case "!revoke" :: account :: Nil =>
-          requireGranted(nick, Administrator) {
-            db.withSession { implicit s =>
-              users.filter(_.account == account).delete
-              send(Msg(nick, s"Access revoked to $account"))
+        case _ => words(msg, 2) match {
+          case "!revoke" :: account :: Nil =>
+            requireGranted(nick, Administrator) {
+              db.withSession { implicit s =>
+                users.filter(_.account === account).delete
+                send(Msg(nick, s"Access revoked to $account"))
+              }
             }
-          }
-        case "!acl" :: level :: Nil =>
-          requireGranted(nick, Administrator) {
-            extractLevel(level) match {
-              case Some(level) =>
-                db.withSession { implicit s =>
-                  val res = users.filter(_.userLevel === level).sortBy(_.account).list
-                  if (res.isEmpty) {
-                    send(Msg(nick, f"no result found"))
-                  } else {
-                    for (u <- res.take(10)) {
-                      send(Msg(nick, f"${u.account}%-20s ${u.userLevel}"))
-                    }
-                    if (res.size > 10) {
-                      send(Msg(nick, f"...${res.size-10} more"))
-                    }
-                  }
-                }
-              case None =>
-                db.withSession { implicit s =>
-                  users.filter(_.account === level).firstOption match {
-                    case Some(u) =>
-                      send(Msg(nick, f"${u.account}%-20s ${u.userLevel}"))
-                    case None =>
+          case "!acl" :: level :: Nil =>
+            requireGranted(nick, Administrator) {
+              extractLevel(level) match {
+                case Some(level) =>
+                  db.withSession { implicit s =>
+                    val res = users.filter(_.userLevel === level).sortBy(_.account).list
+                    if (res.isEmpty) {
                       send(Msg(nick, f"no result found"))
+                    } else {
+                      for (u <- res.take(10)) {
+                        send(Msg(nick, f"${u.account}%-20s ${u.userLevel}"))
+                      }
+                      if (res.size > 10) {
+                        send(Msg(nick, f"...${res.size-10} more"))
+                      }
+                    }
                   }
-                }
+                case None =>
+                  db.withSession { implicit s =>
+                    users.filter(_.account === level).firstOption match {
+                      case Some(u) =>
+                        send(Msg(nick, f"${u.account}%-20s ${u.userLevel}"))
+                      case None =>
+                        send(Msg(nick, f"no result found"))
+                    }
+                  }
+              }
             }
-          }
-        case _ =>
+          case _ =>
+        }
       }
     case _ =>
   }
@@ -85,6 +87,6 @@ class ACL(val db: Database,
   override val helpEntries = List(
     HelpEntry(Regular, "grant",      "!grant <account> <level>", "Grant level <level> to account <account>"),
     HelpEntry(Regular, "revoke",     "!revoke <user>",           "Revoke all accesses to <user>"),
-    HelpEntry(Guest,   "acl",        "!acl <lvl>",               "Lists accounts with level <lvl>")
+    HelpEntry(Guest,   "acl",        "!acl <lvl>/<account>",     "Lists ACL for <lvl>/<account>")
   )
 }

@@ -10,16 +10,12 @@ class Protocol(val cfg: Config,
 
   var state = BotState(cfg.authNick)
 
-  def newState(st: BotState) {
-    state = st
-  }
-
   override def onConnect() = {
-    newState(state.copy(nick = state.origNick))
+    state = state.copy(nick = cfg.authNick)
   }
 
   override def onDisconnect() = {
-    newState(state.copy(registeredState = Unregistered))
+    state = state.copy(registeredState = Unregistered)
   }
 
   def onMessage(msg: Message) = msg match {
@@ -29,7 +25,7 @@ class Protocol(val cfg: Config,
 
     case From(_, Numeric(1, _)) =>
       // Registration successful
-      newState(state.copy(registeredState = Registered))
+      state = state.copy(registeredState = Registered)
 
     case From(NickMask(nick), Invite(_, chan)) =>
       requireGranted(nick, Administrator) {
@@ -53,13 +49,13 @@ class Protocol(val cfg: Config,
     case Error(`ERR_NICKNAMEINUSE`, _) => // "Nick already in use"
       logWarning("Nick is already in use!")
 
-      newState(state.copy(nick = state.nick.nextNick))
+      state = state.copy(nick = state.nick.nextNick)
       send(NickChange(state.nick))
 
     case Error(`ERR_UNAVAILRESOURCE`, _) => // "Nick is unavailable"
       logWarning("Nick is unavailable!")
 
-      newState(state.copy(nick = state.nick.nextNick))
+      state = state.copy(nick = state.nick.nextNick)
       send(NickChange(state.nick))
 
     case From(_, Ping(msg)) =>
@@ -68,7 +64,16 @@ class Protocol(val cfg: Config,
     case Ping(msg) =>
       send(Pong(msg))
 
+
     case _ =>
+  }
+
+  override def receive = {
+    case RequestBotState =>
+      sender ! state
+
+    case m =>
+      super.receive(m)
   }
 
 
@@ -81,7 +86,7 @@ class Protocol(val cfg: Config,
 
     send(NickChange(state.nick))
 
-    newState(state.copy(registeredState = Registering))
+    state = state.copy(registeredState = Registering)
   }
 
   val RPL_ENDOFMOTD = 376
