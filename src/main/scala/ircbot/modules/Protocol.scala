@@ -31,7 +31,7 @@ class Protocol(val cfg: Config,
       // Registration successful
       newState(state.copy(registeredState = Registered))
 
-    case Invite(nick, chan) =>
+    case From(NickMask(nick), Invite(_, chan)) =>
       requireGranted(nick, Administrator) {
         send(Join(chan))
       }

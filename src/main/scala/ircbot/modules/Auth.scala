@@ -9,6 +9,8 @@ import utils._
 import InnerProtocol._
 import scala.slick.driver.MySQLDriver.simple._
 import db.Helpers
+import db.Helpers._
+import db.User
 
 class Auth(val db: Database,
            val ctl: ActorRef) extends Module {
@@ -26,16 +28,18 @@ class Auth(val db: Database,
             val account = rawAccount.replaceAll("\\p{C}", "")
 
             val lvl = db.withSession { implicit s =>
-              Helpers.users.filter(_.account === account).map(_.userLevel).firstOption.getOrElse(Guest)
+              (for {
+                u <- Helpers.users if u.account === account
+              } yield(u.userLevel)).firstOption.getOrElse(Guest)
             }
 
             logInfo(s"Authenticated ${nick.name}/$account to level: $lvl")
 
-            val user = User(nick, lvl)
+            val user = User(account, lvl)
             users += nick -> user
 
             requests.getOrElse(nick, Set()).foreach { aref =>
-              aref ! user
+              aref ! Some(user)
             }
 
             requests -= nick
@@ -69,7 +73,7 @@ class Auth(val db: Database,
 
     case AuthGetUser(nick) =>
       if (users contains nick) {
-        sender ! users(nick)
+        sender ! Some(users(nick))
       } else {
         requests += nick -> (requests.getOrElse(nick, Set()) + sender)
         send(Msg(Nick.NickServ, "INFO "+nick.name))

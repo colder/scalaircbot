@@ -22,4 +22,19 @@ object Helpers {
   def factoidByToken(name: String) = {
     factoids.filter(_.token === name)
   }
+
+  implicit def userlevelMapper = MappedColumnType.base[UserLevel, String](
+    { _ match {
+      case Guest => "guest"
+      case Regular => "regular"
+      case Administrator => "administrator"
+      case Manager => "manager"
+    } },
+    { _ match {
+      case "guest" => Guest
+      case "regular"=> Regular
+      case "administrator" => Administrator
+      case "manager" => Manager
+    } }
+  )
 }

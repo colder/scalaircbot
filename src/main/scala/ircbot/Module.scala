@@ -9,6 +9,7 @@ import scala.concurrent.duration._
 import scala.concurrent._
 import ExecutionContext.Implicits.global
 import java.util.concurrent.TimeoutException
+import db._
 
 abstract class Module extends Actor with RemoteLogger with HelpInfo {
   val ctl: ActorRef
@@ -19,8 +20,8 @@ abstract class Module extends Actor with RemoteLogger with HelpInfo {
     ctl ! SendMessage(message)
   }
 
-  protected def getUser(nick: Nick): Future[User] = {
-    ctl.ask(SendTo("auth", AuthGetUser(nick)))(10.seconds).mapTo[User].fallbackTo(Future(User.default(nick)))
+  protected def getUser(nick: Nick): Future[Option[User]] = {
+    ctl.ask(SendTo("auth", AuthGetUser(nick)))(10.seconds).mapTo[Option[User]].fallbackTo(Future(None))
   }
 
   def requireGranted(nick: Nick, lvl: UserLevel)(onGranted: => Any) = {
@@ -32,12 +33,15 @@ abstract class Module extends Actor with RemoteLogger with HelpInfo {
   }
 
   def ifGranted[T](nick: Nick, lvl: UserLevel)(onGranted: => T)(onNotGranted: => T): Future[T] = {
-    getUser(nick).map { u =>
-      if (u.level >= lvl) {
-        onGranted
-      } else {
+    getUser(nick).map { 
+      case Some(u) =>
+        if (u.userLevel >= lvl) {
+          onGranted
+        } else {
+          onNotGranted
+        }
+      case None =>
         onNotGranted
-      }
     }
   }
 

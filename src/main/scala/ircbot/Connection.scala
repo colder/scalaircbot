@@ -4,8 +4,11 @@ import akka.actor._
 import akka.io.{ IO, Tcp }
 import akka.util.ByteString
 import java.net.InetSocketAddress
+import scala.concurrent.duration._
 
-import utils._
+import scala.collection.mutable.Queue
+
+import utils.{Duration=>_, _}
 
 import InnerProtocol._
 
@@ -23,27 +26,39 @@ class Connection(host: String,
   logInfo(s"[$name] Connecting...")
   IO(Tcp) ! Connect(remote)
 
-  var messages: List[Long] = Nil
-  val timespan  = 10
-  val threshold = 20
+  case object Ack extends Tcp.Event
 
-  def nowMs() = System.currentTimeMillis
+  class Throttler(max: Int, in: Duration) {
+    var history = List[Long]()
 
-  def addMessage() {
-    messages = nowMs() :: messages
-  }
+    def now() = System.currentTimeMillis
 
-  def cleanMessages() {
-    if (messages.size > 50) {
-      messages = messages filter { _ > nowMs()-timespan*2*1000 }
+    def guard(b: => Unit) {
+      record()
+
+      if (isFlooding()) {
+        logInfo("Flood detected, delaying..")
+        Thread.sleep(2000);
+      }
+
+      b
+    }
+
+    def record() = {
+      history ::= now()
+
+      history = history.take(3*max)
+    }
+
+    def isFlooding() = {
+      history.filter(_ > now()-in.toMillis).size >= max
     }
   }
 
-  def isFlooding = {
-    messages.filter{ _ > nowMs()-timespan*1000 }.length >= threshold
-  }
+  val throttler = new Throttler(5, 3.seconds)
 
-  var buffer: String = "";
+
+  var inBuffer = ""
 
   def receive = {
     case CommandFailed(_: Connect) =>
@@ -68,32 +83,32 @@ class Connection(host: String,
               logWarning(s"[$name] Impossible to send "+msg)
           }
 
+        case Ack => acknowledge(connection)
+
         case SendRawMessage(line) =>
-          addMessage()
+          buffer(line)
 
-          if (isFlooding) {
-            logWarning(s"[$name] Flood detected, delaying...")
-            Thread.sleep(2000)
+          if (!buffering) {
+            throttler.guard {
+              logOut(line)
+              val data = ByteString(line+"\r\n")
+              connection ! Write(data, Ack)
+            }
+            buffering = true
           }
-
-          logOut(line)
-
-          connection ! Write(ByteString(line+"\r\n"))
-
-          cleanMessages()
 
         case CommandFailed(w: Write) =>
           logWarning(s"[$name] write failed (O/S buffer was full)")
 
         case Received(data) =>
-          val str = buffer + data.utf8String
+          val str = inBuffer + data.utf8String
           var lines = str.split("\r\n").toList
 
           if (!str.endsWith("\r\n")) {
-            buffer = lines.last
+            inBuffer = lines.last
             lines = lines.dropRight(1)
           } else {
-            buffer = ""
+            inBuffer = ""
           }
 
           lines.foreach { line =>
@@ -109,4 +124,26 @@ class Connection(host: String,
       }
   }
 
+  var buffering = false
+  var storage = new Queue[String]()
+
+  def buffer(line: String) {
+    storage enqueue line
+  }
+
+  def acknowledge(connection: ActorRef) {
+    storage.dequeue
+
+    if (storage.isEmpty) {
+      buffering = false
+    } else {
+      val line = storage.head
+
+      throttler.guard {
+        logOut(line)
+        val data = ByteString(line+"\r\n")
+        connection ! Write(data, Ack)
+      }
+    }
+  }
 }

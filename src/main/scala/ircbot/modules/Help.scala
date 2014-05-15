@@ -33,8 +33,11 @@ class Help(val ctl: ActorRef) extends SimpleModule {
   }
 
   def getEntriesFor(nick: Nick) = {
-    getUser(nick).map { u =>
-      allEntries.filter(_.minLevel <= u.level)
+    getUser(nick).map {
+      case Some(u) =>
+        allEntries.filter(_.minLevel <= u.userLevel)
+      case None =>
+        Nil
     }
   }
 

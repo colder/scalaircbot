@@ -21,7 +21,11 @@ class Factoids(val db: Database,
           case prefix :: fact :: Nil =>
             ifGranted(nick, Regular) {
               lookup(fact).foreach { factoid =>
-                send(Msg(chan, prefix+", "+factoid))
+                if (prefix.nonEmpty) {
+                  send(Msg(chan, prefix+", "+factoid))
+                } else {
+                  send(Msg(chan, factoid))
+                }
               }
             } {
               send(Msg(nick, "This public command can only be used by regulars. You can simply msg me: /msg php-bot "+fact))
