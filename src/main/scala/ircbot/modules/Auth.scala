@@ -7,9 +7,12 @@ import akka.util.Timeout
 import scala.concurrent.duration._
 import utils._
 import InnerProtocol._
+import scala.slick.driver.MySQLDriver.simple._
+import db.Helpers
 
-class Auth(val ctl: ActorRef) extends Module {
-  val users = new CachedMap[Nick, UserLevel](30.minutes)
+class Auth(val db: Database,
+           val ctl: ActorRef) extends Module {
+  val users = new CachedMap[Nick, User](30.minutes)
   val requests = new CachedMap[Nick, Set[ActorRef]](20.seconds)
 
   def receive = {
@@ -21,12 +24,16 @@ class Auth(val ctl: ActorRef) extends Module {
           case NickIdent(nick, ident) =>
             val n = Nick(nick.replaceAll("\\p{C}", ""))
             val i = Ident(ident.replaceAll("\\p{C}", ""))
-            val lvl = Guest
 
-            users += n -> lvl
+            val lvl = db.withSession { implicit s =>
+              Helpers.users.filter(_.account === i.value).map(_.userLevel).firstOption.getOrElse(Guest)
+            }
+
+            val u = User(n, lvl)
+            users += n -> u
 
             requests.getOrElse(n, Set()).foreach { a =>
-              a ! AuthUserLevel(n, lvl)
+              a ! u
             }
 
             requests -= n
@@ -57,9 +64,9 @@ class Auth(val ctl: ActorRef) extends Module {
       case _ =>
     }
 
-    case AuthGetUserLevel(nick) =>
+    case AuthGetUser(nick) =>
       if (users contains nick) {
-        sender ! AuthUserLevel(nick, users(nick))
+        sender ! users(nick)
       } else {
         requests += nick -> (requests.getOrElse(nick, Set()) + sender)
         send(Msg(Nick.NickServ, "INFO "+nick.name))

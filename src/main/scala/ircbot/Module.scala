@@ -2,37 +2,42 @@ package ircbot
 
 import akka.actor._
 import akka.pattern.ask
+import akka.util.Timeout
 import InnerProtocol._
 import utils._
 import scala.concurrent.duration._
-import scala.concurrent.Await
+import scala.concurrent._
+import ExecutionContext.Implicits.global
 import java.util.concurrent.TimeoutException
 
 abstract class Module extends Actor with RemoteLogger {
   val ctl: ActorRef
 
+  implicit val tm = Timeout(10.seconds)
+
   def send(message: Message) {
     ctl ! SendMessage(message)
   }
 
-  def isGranted(nick: Nick, lvl: UserLevel): Boolean = {
-    val f = ctl.ask(SendTo("auth", AuthGetUserLevel(nick)))(10.seconds).mapTo[AuthUserLevel]
-
-    val lvl = try { 
-      Await.result(f, 10.seconds).lvl
-    } catch {
-      case e: TimeoutException =>
-        Guest
-    }
-
-    lvl.hierarchy >= lvl.hierarchy
+  protected def getUser(nick: Nick): Future[User] = {
+    ctl.ask(SendTo("auth", AuthGetUser(nick)))(10.seconds).mapTo[User].fallbackTo(Future(User.default(nick)))
   }
 
-  def requireGranted[T](nick: Nick, lvl: UserLevel)(onGranted: => T) {
-    if (isGranted(nick, lvl)) {
+  def requireGranted(nick: Nick, lvl: UserLevel)(onGranted: => Any) = {
+    ifGranted(nick, lvl) {
       onGranted
-    } else {
+    } {
       send(Msg(nick, "Permission denied: this command requires at least the "+lvl+" right!"))
+    }
+  }
+
+  def ifGranted[T](nick: Nick, lvl: UserLevel)(onGranted: => T)(onNotGranted: => T): Future[T] = {
+    getUser(nick).map { u =>
+      if (u.level >= lvl) {
+        onGranted
+      } else {
+        onNotGranted
+      }
     }
   }
 

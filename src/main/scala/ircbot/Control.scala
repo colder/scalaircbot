@@ -1,11 +1,10 @@
 package ircbot
 
-import sql.MysqlConnection
-
 import utils._
 import akka.actor._
-import scala.concurrent.duration._
 
+import scala.slick.driver.MySQLDriver.simple._
+import org.apache.commons.dbcp2.BasicDataSource
 import modules._
 
 import InnerProtocol._
@@ -20,16 +19,23 @@ class Control(val cfg: Config) extends Actor with RemoteLogger {
   val logger = context.actorOf(Props(new Logger(cfg)))
 
   /* Database connection */
-  var db: MysqlConnection = new MysqlConnection(cfg.dbHost,
-                                                cfg.dbPort,
-                                                cfg.dbDatabase,
-                                                cfg.dbUser,
-                                                cfg.dbPass)
+  val dataSource = {
+    val ds = new BasicDataSource
+    ds.setUsername(cfg.dbUser)
+    ds.setPassword(cfg.dbPass)
+    ds.setMaxIdle(5);
+    ds.setInitialSize(1);
+    ds.setValidationQuery("SELECT 1 FROM irc_factoids")
+    ds.setUrl("jdbc:mysql://" + cfg.dbHost+ ":" + cfg.dbPort + "/"+cfg.dbDatabase)
+    ds
+  }
+
+  val db = Database.forDataSource(dataSource);
 
   var modules: Map[String, ActorRef] = Map(
     "protocol" -> context.actorOf(Props(new Protocol(cfg, self))),
-    "auth"     -> context.actorOf(Props(new Auth(self))),
-    "factoids" -> context.actorOf(Props(new Factoids(cfg, self)))
+    "auth"     -> context.actorOf(Props(new Auth(db, self))),
+    "factoids" -> context.actorOf(Props(new Factoids(db, self)))
   )
 
   def dispatch(f: ActorRef => Unit) {

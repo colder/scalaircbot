@@ -125,7 +125,7 @@ object IrcHelpers {
   def messageToRawCommand(msg: Message): Option[String] = msg match {
     case Msg(to, msg) =>
       val msgl = if (msg.length > 450) msg.substring(0, 445)+"..." else msg
-      Some(s"PRIVMSG ${to.name} : $msgl");
+      Some(s"PRIVMSG ${to.name} :$msgl");
 
     case Mode(channel, modes, user) =>
       Some(s"MODE ${channel.name} ${modes} ${user.name}");

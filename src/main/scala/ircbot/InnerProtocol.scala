@@ -26,8 +26,6 @@ object InnerProtocol {
   case class ListenUntil(onMessage: PartialFunction[Any, Any])
 
   // Auth/Idents
-  case class AuthUserLevel(n: Nick, lvl: UserLevel)
-  case class AuthGetUserLevel(n: Nick)
-
+  case class AuthGetUser(n: Nick)
 }
 

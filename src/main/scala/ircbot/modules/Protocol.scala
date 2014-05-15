@@ -60,11 +60,6 @@ class Protocol(val cfg: Config,
     case From(_, Ping(msg)) =>
       send(Pong(msg))
 
-    case From(NickMask(nick), Msg(_, "test")) =>
-      if (isGranted(nick, Guest)) {
-        send(Msg(nick, "It works!"))
-      }
-
     case Ping(msg) =>
       send(Pong(msg))
 
