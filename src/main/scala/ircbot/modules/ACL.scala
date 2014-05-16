@@ -29,6 +29,7 @@ class ACL(val db: Database,
                     case None =>
                       users += User(account, newLevel)
                   }
+                  send(Msg(nick, s"Granted level $newLevel to account $account"))
                 }
               case None =>
                 send(Msg(nick, s"Unknown level $level"))
