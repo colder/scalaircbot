@@ -50,8 +50,8 @@ object Helpers {
     } }
   )
 
-  implicit def durationMapper = MappedColumnType.base[Duration, Int](
-    { (d: Duration) => (d.getMillis / 1000).toInt },
+  implicit def durationMapper = MappedColumnType.base[Duration, Long](
+    { (d: Duration) => d.getStandardSeconds },
     { i => new Duration(i * 1000) }
   )
 }
