@@ -32,7 +32,7 @@ class Protocol(val cfg: Config,
         send(Join(chan))
       }
 
-    case Numeric(`RPL_ENDOFMOTD`, _) =>
+    case From(_, Numeric(`RPL_ENDOFMOTD`, _)) =>
       // End of MOTD, let's join channels
       for(chan <- cfg.channels) {
         send(Join(chan))

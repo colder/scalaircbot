@@ -7,6 +7,7 @@ import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import utils._
 import InnerProtocol._
+import Modes._
 
 class OpControl(val ctl: ActorRef) extends Module {
   var isOp     = Map[Channel, DateTime]() // last OP request, for deop/cleanup
@@ -19,7 +20,7 @@ class OpControl(val ctl: ActorRef) extends Module {
       isOp = Map()
       requests.empty()
 
-    case ReceivedMessage(From(_, Mode(chan, "+o", nick))) =>
+    case ReceivedMessage(From(_, Mode(chan, Plus(O(nick)) :: Nil ))) =>
       currentState.map {
         case bs if (bs.nick == nick) =>
           logInfo("Opped in "+chan.name)
@@ -32,7 +33,7 @@ class OpControl(val ctl: ActorRef) extends Module {
           println("woot "+bs.nick+" "+nick)
       }
 
-    case ReceivedMessage(From(_, Mode(chan, "-o", nick))) =>
+    case ReceivedMessage(From(_, Mode(chan, Minus(O(nick)) :: Nil ))) =>
       currentState.map {
         case bs if (bs.nick == nick) =>
           logInfo("Deopped from "+chan.name)
@@ -57,7 +58,7 @@ class OpControl(val ctl: ActorRef) extends Module {
     case Tick =>
       for ((chan, last) <- isOp if last.isBefore(new DateTime().minus(stayOpFor.toMillis))) {
         currentState.map { s =>
-          send(Mode(chan, "-o", s.nick))
+          send(Mode(chan, List(Minus(O(s.nick)))))
         }
       }
 

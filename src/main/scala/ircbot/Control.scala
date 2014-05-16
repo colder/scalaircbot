@@ -38,13 +38,16 @@ class Control(val cfg: Config) extends Actor with RemoteLogger {
     "factoids" -> context.actorOf(Props(new Factoids(db, self))),
     "acl"      -> context.actorOf(Props(new ACL(db, self))),
     "op"       -> context.actorOf(Props(new OpControl(self))),
-    "banlog"   -> context.actorOf(Props(new BanLog(db, self))),
+    "banlog"   -> context.actorOf(Props(new BanLog(db, self, cfg.channels.head))),
+    "flood"    -> context.actorOf(Props(new FloodProtect(self, cfg.channels.head))),
     "help"     -> context.actorOf(Props(new Help(self)))
   )
 
   def dispatch(f: ActorRef => Unit) {
     modules.foreach{ case (name, mod) => f(mod) }
   }
+
+  var firstTick = true
 
   def receive = {
     case Init =>
@@ -60,7 +63,12 @@ class Control(val cfg: Config) extends Actor with RemoteLogger {
       dispatch(_ ! GC)
 
     case Tick =>
-      dispatch(_ ! Tick)
+      // First tick do not propagate to avoid tick-before-connect
+      if (firstTick) {
+        firstTick = false
+      } else {
+        dispatch(_ ! Tick)
+      }
 
     case Dispatch(msg, toSender) =>
       modules.collect {

@@ -16,7 +16,8 @@ import db.User
 import db.{BanLog => DBBanLog, BanLogs => DBBanLogs}
 
 class BanLog(val db: Database,
-             val ctl: ActorRef) extends Module {
+             val ctl: ActorRef,
+             val chan: Channel) extends Module {
 
   override def receive = {
     case ReceivedMessage(From(NickMask(admin), Msg(to: Nick, msg))) =>
@@ -26,7 +27,7 @@ class BanLog(val db: Database,
             (getUser(admin) zip getUser(Nick(nick))).collect { case (Some(adminAccount), Some(userAccount)) =>
               parseDuration(duration) match {
                 case Some(d) =>
-                  doBan(admin, Ban,  adminAccount, userAccount, d, reason)
+                  doBan(Some(admin), Ban, adminAccount, userAccount, d, reason)
                 case None =>
                   send(Msg(admin, s"Unable to extract duration '$duration'"))
               }
@@ -37,25 +38,20 @@ class BanLog(val db: Database,
             (getUser(admin) zip getUser(Nick(nick))).collect { case (Some(adminAccount), Some(userAccount)) =>
               parseDuration(duration) match {
                 case Some(d) =>
-                  doBan(admin, Ban,  adminAccount, userAccount, d, reason)
+                  doBan(Some(admin), Mute, adminAccount, userAccount, d, reason)
                 case None =>
                   send(Msg(admin, s"Unable to extract duration '$duration'"))
 
               }
             }
           }
-        case "!unban"  :: nick :: Nil =>
+        case ("!unban" | "!unmute")  :: nick :: Nil =>
           requireGranted(admin, Administrator) {
             getUser(Nick(nick)).collect { case Some(userAccount) =>
-              doUnban(admin, Ban, userAccount)
+              doUnban(admin, userAccount)
             }
           }
-        case "!unmute" :: nick :: Nil =>
-          requireGranted(admin, Administrator) {
-            getUser(Nick(nick)).collect { case Some(userAccount) =>
-              doUnban(admin, Mute, userAccount)
-            }
-          }
+
         case "!banstatus" :: nick :: Nil =>
           requireGranted(admin, Administrator) {
             getUser(Nick(nick)).collect { case Some(userAccount) =>
@@ -69,6 +65,16 @@ class BanLog(val db: Database,
 
         case _ =>
       }
+
+    case RequestBan(tpe, nick, duration, reason) =>
+      println("Got "+tpe+" request")
+      getUser(nick).collect { case Some(userAccount) =>
+        doBan(None, tpe, User("php-bot", Manager), userAccount, duration, reason)
+      }
+
+    case Tick =>
+      removeElapsedBans
+
 
     case msg =>
       super.receive(msg)
@@ -95,6 +101,7 @@ class BanLog(val db: Database,
     List(n(days, "d"), n(hours, "h"), n(mins, "m")).flatten.mkString(" ")
   }
 
+
   val dateFormat = DateTimeFormat.forPattern("dd.MM.YYYY HH:mm")
 
   def dateToString(d: DateTime): String = {
@@ -104,42 +111,68 @@ class BanLog(val db: Database,
   def parseDuration(s: String): Option[Duration] = s match {
     case "perm" | "permanent" => Some(new Duration(-1000))
     case s => try {
-      Some(Duration.parse(s))
+      val f = new PeriodFormatterBuilder()
+       .appendDays()
+       .appendSuffix("d")
+       .appendSeparator(" ")
+       .appendHours()
+       .appendSuffix("h")
+       .appendSeparator(" ")
+       .appendMinutes()
+       .appendSuffix("m")
+       .toFormatter();
+
+       Some(f.parsePeriod(s).toDurationFrom(new DateTime()))
     } catch {
       case _: Exception => None
     }
   }
 
-  def doBan(from: Nick, tpe: BanType, admin: User, user: User, duration: Duration, reason: String) {
-    println("YAY")
+  def doBan(ofrom: Option[Nick], tpe: BanType, admin: User, user: User, duration: Duration, reason: String) {
     db.withSession { implicit s =>
       val q = getExistingQ(user)
-    println("YAY2")
       q.firstOption match {
         case Some(b) =>
-    println("YAY4")
           val nb = b.copy(duration = duration, tpe = tpe, reason = reason, dateStart = new DateTime(), accountAdmin = admin.account)
-          send(Msg(from, "Updated entry:"))
-          send(Msg(from, getBanDesc(nb)))
+          ofrom.foreach { from =>
+            send(Msg(from, "Updated entry:"))
+            send(Msg(from, getBanDesc(nb)))
+          }
           q.update(nb)
         case None =>
-    println("YAY6")
-          val nb = DBBanLog(None, admin.account, user.account, tpe, new DateTime(), duration, None, reason)
-          send(Msg(from, "New entry:"))
-          send(Msg(from, getBanDesc(nb)))
-          banlogs += nb
+          requireOP(chan) {
+            db.withSession { implicit s =>
+              val nb = DBBanLog(None, admin.account, user.account, tpe, new DateTime(), duration, None, reason)
+              ofrom.foreach { from =>
+                send(Msg(from, "New entry:"))
+                send(Msg(from, getBanDesc(nb)))
+              }
+              banlogs += nb
+              import Modes._
+              val m = if (tpe == Mute) Q(AccountMask(user.account)) else B(AccountMask(user.account))
+              send(Mode(chan, List(Plus(m))))
+            }
+          }
       }
     }
   }
 
-  def doUnban(from: Nick, tpe: BanType, user: User) {
+  def doUnban(from: Nick, user: User) {
     db.withSession { implicit s =>
       val q = getExistingQ(user)
       q.firstOption match {
         case Some(b) =>
-          val nb = b.copy(dateEnd = Some(new DateTime()))
-          send(Msg(from, "Removed "+tpe+" for "+user.account))
-          q.update(nb)
+          requireOP(chan) {
+            db.withSession { implicit s =>
+              import Modes._
+              val nb = b.copy(dateEnd = Some(new DateTime()))
+              send(Msg(from, "Removed "+b.tpe+" for "+user.account))
+              q.update(nb)
+
+              val m = if (b.tpe == Mute) Q(AccountMask(user.account)) else B(AccountMask(user.account))
+              send(Mode(chan, List(Minus(m))))
+            }
+          }
         case None =>
           send(Msg(from, "No entry found for account "+user.account))
       }
@@ -189,6 +222,23 @@ class BanLog(val db: Database,
 
       if (results.isEmpty) {
         send(Msg(from, "No active ban entry found"))
+      }
+    }
+  }
+
+  def removeElapsedBans {
+    db.withSession { implicit s =>
+      for (b <- banlogs.filter(_.dateEnd.isNull).list) {
+        if (!b.isPermanent && b.remaining.getMillis < 0) {
+          import Modes._
+          val q = banlogs.filter(_.id === b.id).map(_.dateEnd)
+          q.update(Some(new DateTime()))
+
+          logInfo("Removed "+b.tpe+" for "+b.accountUser)
+
+          val m = if (b.tpe == Mute) Q(AccountMask(b.accountUser)) else B(AccountMask(b.accountUser))
+          send(Mode(chan, List(Minus(m))))
+        }
       }
     }
   }

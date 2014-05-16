@@ -37,24 +37,38 @@ case object WildcardMask extends Mask {
   val hostname = None
 }
 
+case class AccountMask(account: String) extends Mask {
+  val onick = None
+  val username = None
+  val hostname = None
+
+  override def toString = "$a:"+account
+}
+
 
 object Mask {
-  def apply(str: String): Mask = str.split("[@!]", 3).toList match {
-    case nick :: user :: host :: Nil =>
-      UserMask(Nick(nick), Some(user), Some(host))
+  def apply(str: String): Mask = {
+    if (str.startsWith("$a:")) {
+      AccountMask(str.substring(3, str.length))
+    } else {
+      str.split("[@!]", 3).toList match {
+        case nick :: user :: host :: Nil =>
+          UserMask(Nick(nick), Some(user), Some(host))
 
-    case nick :: rest :: Nil =>
-      if (str.indexOf("@") > 0) {
-        UserMask(Nick(nick), None, Some(rest))
-      } else {
-        UserMask(Nick(nick), Some(rest), None)
+        case nick :: rest :: Nil =>
+          if (str.indexOf("@") > 0) {
+            UserMask(Nick(nick), None, Some(rest))
+          } else {
+            UserMask(Nick(nick), Some(rest), None)
+          }
+
+        case servername :: Nil =>
+          ServerMask(servername)
+
+        case _ =>
+          WildcardMask
       }
-
-    case servername :: Nil =>
-      ServerMask(servername)
-
-    case _ =>
-      WildcardMask
+    }
   }
 }
 
@@ -77,9 +91,16 @@ object Modes {
     override def toString = v
   }
 
-  case object O extends ChannelUserMode("o")
-  case object V extends ChannelUserMode("v")
-  case class  B(mask: Mask) extends ChannelUserMode("b "+mask)
+  case class O(nick: Nick) extends ChannelUserMode("o "+nick.name)
+  case class V(nick: Nick) extends ChannelUserMode("v "+nick.name)
+  case class B(mask: Mask) extends ChannelUserMode("b "+mask)
+  case class Q(mask: Mask) extends ChannelUserMode("q "+mask)
+
+  sealed abstract class Mode(v: String) {
+    override def toString = v
+  }
+  case class Plus(m: ChannelUserMode)  extends Mode("+"+m)
+  case class Minus(m: ChannelUserMode) extends Mode("-"+m)
 }
 
 
@@ -108,7 +129,7 @@ case class Unknown(tokens: List[String]) extends Message
 case class Error(code: Int, tokens: List[String]) extends Message
 case class Numeric(code: Int, tokens: List[String]) extends Message
 case class Msg(to: AbsChannel, msg: String) extends Message
-case class Mode(channel: Channel, modes: String, nick: Nick) extends Message
+case class Mode(channel: Channel, modes: Seq[Modes.Mode]) extends Message
 case class Invite(nick: Nick, channel: Channel) extends Message
 case class Part(channel: Channel) extends Message
 case class Join(channel: Channel) extends Message
@@ -127,8 +148,8 @@ object IrcHelpers {
       val msgl = if (msg.length > 450) msg.substring(0, 445)+"..." else msg
       Some(s"PRIVMSG ${to.name} :$msgl");
 
-    case Mode(channel, modes, user) =>
-      Some(s"MODE ${channel.name} ${modes} ${user.name}");
+    case Mode(channel, modes) =>
+      Some(s"MODE ${channel.name} ${modes.mkString(" ")}");
 
     case Invite(user, channel) =>
       Some(s"INVITE ${user.name} ${channel.name}");
@@ -234,8 +255,28 @@ object IrcHelpers {
       case "PRIVMSG" :: to :: msg :: Nil =>
         optFrom(Msg(AbsChannel(to), msg))
 
-      case "MODE" :: channel :: modes :: nick :: Nil =>
-        optFrom(Mode(Channel(channel), modes, Nick(nick)))
+      case "MODE" :: channel :: modesString :: nickMask :: Nil =>
+        import Modes._
+
+        // TODO generalize
+        val m = modesString match {
+          case "+o" => Some(Plus( O(Nick(nickMask))))
+          case "-o" => Some(Minus(O(Nick(nickMask))))
+          case "+v" => Some(Plus( V(Nick(nickMask))))
+          case "-v" => Some(Minus(V(Nick(nickMask))))
+          case "+b" => Some(Plus( B(Mask(nickMask))))
+          case "-b" => Some(Minus(B(Mask(nickMask))))
+          case "+q" => Some(Plus( Q(Mask(nickMask))))
+          case "-q" => Some(Minus(Q(Mask(nickMask))))
+          case _ => None
+        }
+
+        m match {
+          case Some(m) =>
+            optFrom(Mode(Channel(channel), List(m)))
+          case _ =>
+            optFrom(Unknown(params))
+        }
 
       case x :: xs =>
         optFrom(try {
