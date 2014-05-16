@@ -38,6 +38,7 @@ class Control(val cfg: Config) extends Actor with RemoteLogger {
     "factoids" -> context.actorOf(Props(new Factoids(db, self))),
     "acl"      -> context.actorOf(Props(new ACL(db, self))),
     "op"       -> context.actorOf(Props(new OpControl(self))),
+    "banlog"   -> context.actorOf(Props(new BanLog(db, self))),
     "help"     -> context.actorOf(Props(new Help(self)))
   )
 

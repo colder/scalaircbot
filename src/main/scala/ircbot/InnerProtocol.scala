@@ -1,6 +1,8 @@
 package ircbot
 
 import utils._
+import scala.concurrent.duration._
+import db.BanTypes.BanType
 
 /* Inner protocol between Control, Connection and the Modules */
 object InnerProtocol {
@@ -37,6 +39,9 @@ object InnerProtocol {
 
   // OP Request
   case class RequestOp(chan: Channel)
+
+  case class RequestBan(tpe: BanType, admin: Nick, user: Nick, duration: Duration, reason: String)
+  case class RequestUnban(tpe: BanType, user: Nick)
 
 
   case object RequestBotState

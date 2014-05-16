@@ -2,7 +2,7 @@ package ircbot
 package db
 
 import scala.slick.driver.MySQLDriver.simple._
-import org.joda.time.DateTime
+import org.joda.time.{DateTime, Duration}
 
 object Helpers {
 
@@ -17,7 +17,8 @@ object Helpers {
   )
 
   val factoids = TableQuery[Factoids]
-  val users = TableQuery[Users]
+  val users    = TableQuery[Users]
+  val banlogs  = TableQuery[BanLogs]
 
   def factoidByToken(name: String) = {
     factoids.filter(_.token === name)
@@ -36,5 +37,21 @@ object Helpers {
       case "administrator" => Administrator
       case "manager" => Manager
     } }
+  )
+
+  implicit def banTypeMapper = MappedColumnType.base[BanTypes.BanType, String](
+    { _ match {
+      case BanTypes.Ban  => "ban"
+      case BanTypes.Mute => "mute"
+    } },
+    { _ match {
+      case "ban"  => BanTypes.Ban
+      case "mute" => BanTypes.Mute
+    } }
+  )
+
+  implicit def durationMapper = MappedColumnType.base[Duration, Int](
+    { (d: Duration) => (d.getMillis / 1000).toInt },
+    { i => new Duration(i * 1000) }
   )
 }

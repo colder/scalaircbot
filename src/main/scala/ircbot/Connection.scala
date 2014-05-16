@@ -8,7 +8,7 @@ import scala.concurrent.duration._
 
 import scala.collection.mutable.Queue
 
-import utils.{Duration=>_, _}
+import utils._
 
 import InnerProtocol._
 
