@@ -10,6 +10,7 @@ object InnerProtocol {
   case object Init
 
   case object Connected
+  case object Reconnect
   case object Disconnected
 
   // Communication between modules

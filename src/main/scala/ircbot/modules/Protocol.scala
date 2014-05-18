@@ -38,7 +38,7 @@ class Protocol(val cfg: Config,
         send(Join(chan))
       }
 
-    case Error(`ERR_NOTREGISTERED`, _) => // "You have not registered"
+    case From(_, Error(`ERR_NOTREGISTERED`, _)) => // "You have not registered"
       // Typically a reply to a ping after a reconnect
       if (state.registeredState != Unregistered) {
         // We thus re-register
@@ -46,17 +46,40 @@ class Protocol(val cfg: Config,
         doRegister()
       }
 
-    case Error(`ERR_NICKNAMEINUSE`, _) => // "Nick already in use"
+    case From(_, Error(`ERR_NICKNAMEINUSE`, _)) => // "Nick already in use"
       logWarning("Nick is already in use!")
 
-      state = state.copy(nick = state.nick.nextNick)
-      send(NickChange(state.nick))
+      state = state.copy(lastTried = state.lastTried.nextNick)
 
-    case Error(`ERR_UNAVAILRESOURCE`, _) => // "Nick is unavailable"
+      if (state.lastTried != state.nick) {
+        send(NickChange(state.lastTried))
+      }
+
+      if (state.registeredState != Registered) {
+        state = state.copy(nick = state.lastTried)
+        logInfo("Current bot nick set to "+state.lastTried.name)
+      }
+
+    case From(NickMask(nick), NickChange(newnick)) =>
+      if (nick == state.nick) {
+        state = state.copy(nick = newnick)
+        logInfo("Current bot nick set to "+newnick.name)
+      }
+
+
+    case From(_, Error(`ERR_UNAVAILRESOURCE`, _)) => // "Nick is unavailable"
       logWarning("Nick is unavailable!")
 
-      state = state.copy(nick = state.nick.nextNick)
-      send(NickChange(state.nick))
+      state = state.copy(lastTried = state.lastTried.nextNick)
+
+      if (state.lastTried != state.nick) {
+        send(NickChange(state.lastTried))
+      }
+
+      if (state.registeredState != Registered) {
+        state = state.copy(nick = state.lastTried)
+        logInfo("Current bot nick set to "+state.lastTried.name)
+      }
 
     case From(_, Ping(msg)) =>
       send(Pong(msg))
@@ -71,6 +94,13 @@ class Protocol(val cfg: Config,
   override def receive = {
     case RequestBotState =>
       sender ! state
+
+    case Tick =>
+      if (state.nick != cfg.authNick) {
+        // Try to go back to original nick
+        state = state.copy(lastTried = cfg.authNick)
+        send(NickChange(cfg.authNick))
+      }
 
     case m =>
       super.receive(m)

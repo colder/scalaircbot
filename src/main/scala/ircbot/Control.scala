@@ -40,7 +40,8 @@ class Control(val cfg: Config) extends Actor with RemoteLogger {
     "op"       -> context.actorOf(Props(new OpControl(self))),
     "banlog"   -> context.actorOf(Props(new BanLog(db, self, cfg.channels.head))),
     "flood"    -> context.actorOf(Props(new FloodProtect(self, cfg.channels.head))),
-    "help"     -> context.actorOf(Props(new Help(self)))
+    "help"     -> context.actorOf(Props(new Help(self))),
+    "concheck" -> context.actorOf(Props(new ConnectionChecker(self)))
   )
 
   def dispatch(f: ActorRef => Unit) {
@@ -51,6 +52,7 @@ class Control(val cfg: Config) extends Actor with RemoteLogger {
 
   def receive = {
     case Init =>
+      initializeConnection()
       dispatch(_ ! Init)
 
     case Connected =>
@@ -58,6 +60,15 @@ class Control(val cfg: Config) extends Actor with RemoteLogger {
 
     case Disconnected =>
       dispatch(_ ! Disconnected)
+      logInfo("Reconnecting in 5 seconds...")
+      Thread.sleep(5000)
+      initializeConnection()
+
+    case Reconnect =>
+      dispatch(_ ! Disconnected)
+      context.stop(c)
+      initializeConnection()
+
 
     case GC =>
       dispatch(_ ! GC)
@@ -92,10 +103,6 @@ class Control(val cfg: Config) extends Actor with RemoteLogger {
 
     case SendRawMessage(data) =>
       c ! SendRawMessage(data)
-  }
-
-  override def preStart = {
-    initializeConnection()
   }
 
   def initializeConnection() {

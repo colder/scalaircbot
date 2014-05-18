@@ -7,9 +7,10 @@ case object Unregistered extends RegisterState
 
 case class BotState(
   nick: Nick,
+  lastTried: Nick,
   registeredState: RegisterState = Unregistered
 )
 
 object BotState {
-  def apply(origNick: Nick): BotState = BotState(origNick, Unregistered)
+  def apply(origNick: Nick): BotState = BotState(origNick, origNick, Unregistered)
 }

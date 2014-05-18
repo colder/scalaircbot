@@ -63,12 +63,12 @@ class Connection(host: String,
   def receive = {
     case CommandFailed(_: Connect) =>
       logError(s"[$name] Error: Connection failed")
-      ctl ! Disconnected
+      ctl ! InnerProtocol.Disconnected
       context stop self
 
     case c @ Connected(remote, local) =>
       logInfo(s"[$name] Connected!")
-      ctl ! Connected
+      ctl ! InnerProtocol.Connected
 
       val connection = sender
       connection ! Register(self)
@@ -119,7 +119,7 @@ class Connection(host: String,
 
         case _: ConnectionClosed =>
           logWarning(s"[$name] Connection closed!")
-          ctl ! Disconnected
+          ctl ! InnerProtocol.Disconnected
           context stop self
       }
   }
