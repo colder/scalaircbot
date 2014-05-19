@@ -13,7 +13,7 @@ class FloodProtect(val ctl: ActorRef,
                    val chan: Channel) extends Module {
 
   val policyMax = 4
-  val policyIn  = Period.minutes(2)
+  val policyIn  = Period.seconds(2)
 
   val store = new CachedMap[Nick, List[DateTime]](Period.minutes(10))
 
