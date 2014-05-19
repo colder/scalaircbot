@@ -6,19 +6,28 @@ import utils._
 import InnerProtocol._
 
 class Protocol(val cfg: Config,
-               val ctl: ActorRef) extends SimpleModule {
+               val ctl: ActorRef) extends Module {
 
   var state = BotState(cfg.authNick)
 
-  override def onConnect() = {
-    state = state.copy(nick = cfg.authNick)
-  }
 
-  override def onDisconnect() = {
-    state = state.copy(registeredState = Unregistered)
-  }
+  override def receive = {
+    case Connected =>
+      state = state.copy(nick = cfg.authNick)
 
-  def onMessage(msg: Message) = msg match {
+    case Disconnected =>
+      state = state.copy(registeredState = Unregistered)
+
+    case RequestBotState =>
+      sender ! state
+
+    case Tick =>
+      if (state.nick != cfg.authNick) {
+        // Try to go back to original nick
+        state = state.copy(lastTried = cfg.authNick)
+        send(NickChange(cfg.authNick))
+      }
+
     case From(_, Notice(_, _)) if state.registeredState == Unregistered =>
       // First Notice => register
       doRegister()
@@ -86,21 +95,6 @@ class Protocol(val cfg: Config,
 
     case Ping(msg) =>
       send(Pong(msg))
-
-
-    case _ =>
-  }
-
-  override def receive = {
-    case RequestBotState =>
-      sender ! state
-
-    case Tick =>
-      if (state.nick != cfg.authNick) {
-        // Try to go back to original nick
-        state = state.copy(lastTried = cfg.authNick)
-        send(NickChange(cfg.authNick))
-      }
 
     case m =>
       super.receive(m)

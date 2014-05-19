@@ -114,7 +114,7 @@ class Connection(host: String,
           lines.foreach { line =>
             logIn(line)
 
-            ctl ! ReceivedMessage(IrcHelpers.rawCommandToMessage(line))
+            ctl ! IrcHelpers.rawCommandToMessage(line)
           }
 
         case _: ConnectionClosed =>

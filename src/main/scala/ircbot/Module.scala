@@ -2,19 +2,19 @@ package ircbot
 
 import akka.actor._
 import akka.pattern.ask
-import akka.util.Timeout
-import InnerProtocol._
-import utils._
 import scala.concurrent.duration._
 import scala.concurrent._
-import ExecutionContext.Implicits.global
-import java.util.concurrent.TimeoutException
-import db._
+
+import org.joda.time.DateTime
+
+import InnerProtocol._
+import utils._
+import db.User
 
 abstract class Module extends Actor with RemoteLogger with HelpInfo {
   val ctl: ActorRef
 
-  implicit val tm = Timeout(10.seconds)
+  implicit val dispatcher = context.dispatcher
 
   def send(message: Message) {
     ctl ! SendMessage(message)
@@ -60,35 +60,12 @@ abstract class Module extends Actor with RemoteLogger with HelpInfo {
   def words(str: String, limit: Int): List[String] =
     str.split("[:,. ]", limit).toList
 
+  def now() = new DateTime()
+
   def receive = {
-    case Connected =>
-      onConnect()
-
-    case Disconnected =>
-      onDisconnect()
-
     case Init =>
-      onInit()
+      ctl ! SendTo("help", HelpEntries(helpEntries))
 
     case _ =>
   }
-
-  def onInit(): Unit = {
-    ctl ! SendTo("help", HelpEntries(helpEntries))
-  }
-
-  def onDisconnect(): Unit = {}
-  def onConnect(): Unit = {}
-
-}
-
-abstract class SimpleModule extends Module with HelpInfo {
-  override def receive = {
-    case ReceivedMessage(msg) =>
-      onMessage(msg)
-
-    case m => super.receive(m)
-  }
-
-  def onMessage(message: Message): Unit
 }

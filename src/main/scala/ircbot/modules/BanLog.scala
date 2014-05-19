@@ -2,7 +2,7 @@ package ircbot
 package modules
 
 import akka.actor._
-import org.joda.time.{DateTime, Duration, PeriodType, Period}
+import org.joda.time.{DateTime, Duration}
 import org.joda.time.format._
 
 import scala.slick.driver.MySQLDriver.simple._
@@ -20,7 +20,7 @@ class BanLog(val db: Database,
              val chan: Channel) extends Module {
 
   override def receive = {
-    case ReceivedMessage(From(NickMask(admin), Msg(to: Nick, msg))) =>
+    case From(NickMask(admin), Msg(to: Nick, msg)) =>
       words(msg, 4) match {
         case "!ban"    :: nick :: duration :: reason :: Nil =>
           requireGranted(admin, Administrator) {
@@ -122,7 +122,7 @@ class BanLog(val db: Database,
        .appendSuffix("m")
        .toFormatter();
 
-       Some(f.parsePeriod(s).toDurationFrom(new DateTime()))
+       Some(f.parsePeriod(s).toDurationFrom(now()))
     } catch {
       case _: Exception => None
     }
@@ -133,7 +133,7 @@ class BanLog(val db: Database,
       val q = getExistingQ(user)
       q.firstOption match {
         case Some(b) =>
-          val nb = b.copy(duration = duration, tpe = tpe, reason = reason, dateStart = new DateTime(), accountAdmin = admin.account)
+          val nb = b.copy(duration = duration, tpe = tpe, reason = reason, dateStart = now(), accountAdmin = admin.account)
           ofrom.foreach { from =>
             send(Msg(from, "Updated entry:"))
             send(Msg(from, getBanDesc(nb)))
@@ -142,7 +142,7 @@ class BanLog(val db: Database,
         case None =>
           requireOP(chan) {
             db.withSession { implicit s =>
-              val nb = DBBanLog(None, admin.account, user.account, tpe, new DateTime(), duration, None, reason)
+              val nb = DBBanLog(None, admin.account, user.account, tpe, now(), duration, None, reason)
               ofrom.foreach { from =>
                 send(Msg(from, "New entry:"))
                 send(Msg(from, getBanDesc(nb)))
@@ -165,7 +165,7 @@ class BanLog(val db: Database,
           requireOP(chan) {
             db.withSession { implicit s =>
               import Modes._
-              val nb = b.copy(dateEnd = Some(new DateTime()))
+              val nb = b.copy(dateEnd = Some(now()))
               send(Msg(from, "Removed "+b.tpe+" for "+user.account))
               q.update(nb)
 
@@ -232,7 +232,7 @@ class BanLog(val db: Database,
         if (!b.isPermanent && b.remaining.getMillis < 0) {
           import Modes._
           val q = banlogs.filter(_.id === b.id).map(_.dateEnd)
-          q.update(Some(new DateTime()))
+          q.update(Some(now()))
 
           logInfo("Removed "+b.tpe+" for "+b.accountUser)
 

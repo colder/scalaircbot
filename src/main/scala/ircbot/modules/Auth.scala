@@ -2,87 +2,84 @@ package ircbot
 package modules
 
 import akka.actor._
-import akka.pattern.ask
-import akka.util.Timeout
-import scala.concurrent.duration._
-import utils._
-import InnerProtocol._
+
+import org.joda.time.Period
+
 import scala.slick.driver.MySQLDriver.simple._
-import db.Helpers
 import db.Helpers._
 import db.User
 
+import utils._
+import InnerProtocol._
+
 class Auth(val db: Database,
            val ctl: ActorRef) extends Module {
-  val users    = new CachedMap[Nick, User](30.minutes)
-  val requests = new CachedMap[Nick, Set[ActorRef]](30.seconds)
+
+  val cache    = new CachedMap[Nick, User](Period.minutes(30))
+  val requests = new CachedMap[Nick, Set[ActorRef]](Period.seconds(30))
 
   override def receive = {
-    case ReceivedMessage(imsg) => imsg match {
-      case From(NickMask(Nick.NickServ), Notice(_, msg)) =>
-        val NickIdent = """Information on (.+) \(account (.+)\):""".r
+    case From(NickMask(Nick.NickServ), Notice(_, msg)) =>
+      val NickIdent = """Information on (.+) \(account (.+)\):""".r
 
-        msg match {
-          case NickIdent(rawNick, rawAccount) =>
-            val nick    = Nick(rawNick.replaceAll("\\p{C}", ""))
-            val account = rawAccount.replaceAll("\\p{C}", "")
+      msg match {
+        case NickIdent(rawNick, rawAccount) =>
+          val nick    = Nick(rawNick.replaceAll("\\p{C}", ""))
+          val account = rawAccount.replaceAll("\\p{C}", "")
 
-            val lvl = db.withSession { implicit s =>
-              (for {
-                u <- Helpers.users if u.account === account
-              } yield(u.userLevel)).firstOption.getOrElse(Guest)
-            }
+          val lvl = db.withSession { implicit s =>
+            (for {
+              u <- users if u.account === account
+            } yield(u.userLevel)).firstOption.getOrElse(Guest)
+          }
 
-            logInfo(s"Authenticated ${nick.name} (account: $account) to level: $lvl")
+          logInfo(s"Authenticated ${nick.name} (account: $account) to level: $lvl")
 
-            val user = User(account, lvl)
-            users += nick -> user
+          val user = User(account, lvl)
+          cache += nick -> user
 
-            requests.getOrElse(nick, Set()).foreach { aref =>
-              aref ! Some(user)
-            }
+          requests.getOrElse(nick, Set()).foreach { aref =>
+            aref ! Some(user)
+          }
 
-            requests -= nick
-
-          case _ =>
-
-        }
-
-      case From(NickMask(nick), Part(channel)) =>
-        users -= nick
-        requests -= nick
-
-      case From(NickMask(nick), Quit(_)) =>
-        users -= nick
-        requests -= nick
-
-      case From(NickMask(nick), NickChange(newnick)) =>
-        if (users contains nick) {
-          users += newnick -> users(nick)
-          users -= nick
-        }
-
-        if (requests contains nick) {
-          requests += newnick -> requests(nick)
           requests -= nick
-        }
 
-      case m =>
-        super.receive(m)
-    }
+        case _ =>
+
+      }
+
+    case From(NickMask(nick), Part(channel)) =>
+      cache -= nick
+      requests -= nick
+
+    case From(NickMask(nick), Quit(_)) =>
+      cache -= nick
+      requests -= nick
+
+    case From(NickMask(nick), NickChange(newnick)) =>
+      if (cache contains nick) {
+        cache += newnick -> cache(nick)
+        cache -= nick
+      }
+
+      if (requests contains nick) {
+        requests += newnick -> requests(nick)
+        requests -= nick
+      }
 
     case AuthGetUser(nick) =>
-      if (users contains nick) {
-        sender ! Some(users(nick))
+      if (cache contains nick) {
+        sender ! Some(cache(nick))
       } else {
         requests += nick -> (requests.getOrElse(nick, Set()) + sender)
         send(Msg(Nick.NickServ, "INFO "+nick.name))
       }
 
     case GC =>
-      users.gc()
+      cache.gc()
       requests.gc()
 
-    case _ =>
+    case m =>
+      super.receive(m)
   }
 }

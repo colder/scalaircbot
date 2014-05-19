@@ -2,29 +2,28 @@ package ircbot
 package modules
 
 import akka.actor._
-import org.joda.time.DateTime
-import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
+import org.joda.time.{DateTime, Period}
+
 import utils._
 import InnerProtocol._
 import Modes._
 
 class OpControl(val ctl: ActorRef) extends Module {
   var isOp     = Map[Channel, DateTime]() // last OP request, for deop/cleanup
-  val requests = new CachedMap[Channel, Set[ActorRef]](30.seconds)
+  val requests = new CachedMap[Channel, Set[ActorRef]](Period.seconds(30))
 
-  var stayOpFor = 5.minutes
+  var stayOpFor = Period.minutes(5)
 
   override def receive = {
     case Connected =>
       isOp = Map()
       requests.empty()
 
-    case ReceivedMessage(From(_, Mode(chan, Plus(O(nick)) :: Nil ))) =>
+    case From(_, Mode(chan, Plus(O(nick)) :: Nil )) =>
       currentState.map {
         case bs if (bs.nick == nick) =>
           logInfo("Opped in "+chan.name)
-          isOp += chan -> new DateTime()
+          isOp += chan -> now()
           requests.getOrElse(chan, Set()).foreach {
             _ ! chan
           }
@@ -33,7 +32,7 @@ class OpControl(val ctl: ActorRef) extends Module {
           println("woot "+bs.nick+" "+nick)
       }
 
-    case ReceivedMessage(From(_, Mode(chan, Minus(O(nick)) :: Nil ))) =>
+    case From(_, Mode(chan, Minus(O(nick)) :: Nil )) =>
       currentState.map {
         case bs if (bs.nick == nick) =>
           logInfo("Deopped from "+chan.name)
@@ -45,7 +44,7 @@ class OpControl(val ctl: ActorRef) extends Module {
 
     case RequestOp(chan) =>
       if (isOp contains chan) {
-        isOp += chan -> new DateTime()
+        isOp += chan -> now()
         sender ! chan
       } else {
         requests += chan -> (requests.getOrElse(chan, Set()) + sender)
@@ -56,7 +55,7 @@ class OpControl(val ctl: ActorRef) extends Module {
       requests.gc()
 
     case Tick =>
-      for ((chan, last) <- isOp if last.isBefore(new DateTime().minus(stayOpFor.toMillis))) {
+      for ((chan, last) <- isOp if now().isAfter(last.plus(stayOpFor))) {
         currentState.map { s =>
           send(Mode(chan, List(Minus(O(s.nick)))))
         }

@@ -2,18 +2,17 @@ package ircbot
 package modules
 
 import akka.actor._
+import scala.slick.driver.MySQLDriver.simple._
 import utils._
 import InnerProtocol._
-import scala.slick.driver.MySQLDriver.simple._
-import org.joda.time.DateTime
 
 import db.Helpers._
 import db._
 
 class Factoids(val db: Database,
-               val ctl: ActorRef) extends SimpleModule {
+               val ctl: ActorRef) extends Module {
 
-  def onMessage(msg: Message) = msg match {
+  override def receive = {
     // Public
     case From(NickMask(nick), Msg(chan: Channel, msg)) =>
       if (msg.contains("!+")) {
@@ -72,9 +71,8 @@ class Factoids(val db: Database,
           }
         case _ =>
       }
-
-
-    case _ =>
+    case m =>
+      super.receive(m)
   }
 
   def lookup(name: String): Option[String] = {
@@ -87,7 +85,7 @@ class Factoids(val db: Database,
     db.withSession { implicit s =>
       factoidByToken(name).firstOption match {
         case Some(f) =>
-          val newF = f.copy(description = description, dateLastEdit = new DateTime())
+          val newF = f.copy(description = description, dateLastEdit = now())
           factoidByToken(name).update(newF)
         case None =>
           factoids += Factoid(name, description)

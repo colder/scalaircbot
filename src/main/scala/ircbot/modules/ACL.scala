@@ -2,18 +2,18 @@ package ircbot
 package modules
 
 import akka.actor._
+
+import scala.slick.driver.MySQLDriver.simple._
+import db.Helpers._
+import db.User
+
 import utils._
 import InnerProtocol._
-import scala.slick.driver.MySQLDriver.simple._
-import org.joda.time.DateTime
-
-import db.Helpers._
-import db._
 
 class ACL(val db: Database,
-          val ctl: ActorRef) extends SimpleModule {
+          val ctl: ActorRef) extends Module {
 
-  def onMessage(msg: Message) = msg match {
+  override def receive = {
     // Private
     case From(NickMask(nick), Msg(to: Nick, msg)) if to != nick =>
       words(msg, 3) match {

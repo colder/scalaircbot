@@ -9,40 +9,25 @@ object InnerProtocol {
   // Initialization
   case object Init
 
-  case object Connected
-  case object Reconnect
-  case object Disconnected
+  abstract class Event
+  case object Connected extends Event
+  case object Disconnected extends Event
+  case object GC extends Event
+  case object Tick extends Event
 
-  // Communication between modules
+  // Actions sent to control
+  case object Reconnect
   case class SendTo(module: String, msg: Any)
   case class Dispatch(msg: AnyRef, sendToSender: Boolean = false)
-
-  // Garbage collection to allow modules to perform GC tasks
-  case object GC
-  case object Tick
-
-  // Write a line to the server
   case class SendRawMessage(line: String)
   case class SendMessage(msg: Message)
-  // Response from the server
-  case class ReceivedMessage(msg: Message)
-
   case class Log(loglvl: LogLevels.LogLevel, msg: String)
 
-  // Listen/reply
-  case class ListenUntil(onMessage: PartialFunction[Any, Any])
-
-  // Auth/Idents
-  case class AuthGetUser(n: Nick)
-
   // Help
+  case class AuthGetUser(n: Nick)
   case class HelpEntries(entries: Seq[HelpEntry])
-
-  // OP Request
   case class RequestOp(chan: Channel)
-
   case class RequestBan(tpe: BanType, user: Nick, duration: Duration, reason: String)
-
   case object RequestBotState
 }
 

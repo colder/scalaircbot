@@ -2,16 +2,18 @@ package ircbot
 package modules
 
 import akka.actor._
+
 import utils._
 import InnerProtocol._
-import scala.concurrent._
-import ExecutionContext.Implicits.global
 
-class Help(val ctl: ActorRef) extends SimpleModule {
+class Help(val ctl: ActorRef) extends Module {
 
   var allEntries = Seq[HelpEntry]()
 
-  override def onMessage(msg: Message) = msg match {
+  override def receive = {
+    case HelpEntries(es) =>
+      allEntries ++= es
+
     case From(NickMask(nick), Msg(chan: Nick, msg)) =>
       words(msg, 2) match {
         case "!help" :: Nil =>
@@ -20,13 +22,6 @@ class Help(val ctl: ActorRef) extends SimpleModule {
           getEntriesFor(nick).map(_.filter(_.name == key)) map displayEntries(nick)
         case _ =>
       }
-
-    case _ =>
-  }
-
-  override def receive = {
-    case HelpEntries(es) =>
-      allEntries ++= es
 
     case m =>
       super.receive(m)

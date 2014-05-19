@@ -2,9 +2,10 @@ package ircbot
 package modules
 
 import akka.actor._
+import org.joda.time.Period
+
 import utils._
 import InnerProtocol._
-import org.joda.time.{DateTime, Period}
 
 class ConnectionChecker(val ctl: ActorRef) extends Module {
   abstract class Status;
@@ -19,7 +20,7 @@ class ConnectionChecker(val ctl: ActorRef) extends Module {
     case Disconnected =>
       active = false
 
-    case ReceivedMessage(_) =>
+    case e: Message =>
       lastMessage = now()
 
     case Tick =>
@@ -31,9 +32,7 @@ class ConnectionChecker(val ctl: ActorRef) extends Module {
         }
       }
 
-    case _ =>
-      super.receive
+    case m =>
+      super.receive(m)
   }
-
-  def now() = new DateTime()
 }

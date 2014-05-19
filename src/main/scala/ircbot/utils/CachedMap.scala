@@ -2,9 +2,10 @@ package ircbot
 package utils
 
 import scala.concurrent.duration.FiniteDuration
+import org.joda.time.{Period, DateTime}
 
-class CachedMap[A,B](timeout: FiniteDuration) {
-  var times = Map[A, Long]()
+class CachedMap[A,B](timeout: Period) {
+  var times = Map[A, DateTime]()
   var values = Map[A, B]()
 
   def += (k: A, v: B) {
@@ -46,10 +47,10 @@ class CachedMap[A,B](timeout: FiniteDuration) {
 
   def getOrElse(k: A, default: B) = get(k).getOrElse(default)
 
-  def now() = System.currentTimeMillis
+  def now() = new DateTime()
 
-  def hasExpired(l: Long) = {
-    (now()-l) > timeout.toMillis
+  def hasExpired(l: DateTime) = {
+    now().isAfter(l.minus(timeout))
   }
 
   def gc() = {
