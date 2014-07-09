@@ -106,8 +106,15 @@ object Modes {
 
 sealed trait UserID
 
-case class Nick(name: String) extends AbsChannel with UserID {
+class Nick(_name: String) extends AbsChannel with UserID {
+  val name = _name.toLowerCase
   def nextNick = Nick(name+"_")
+
+  override def hashCode = name.##
+  override def equals(o: Any) = o match {
+    case that: Nick => this.name == that.name
+    case _ => false
+  }
 }
 
 case class Ident(val value: String) extends UserID {
@@ -117,6 +124,9 @@ case class Ident(val value: String) extends UserID {
 object Nick {
   val ChanServ = Nick("ChanServ")
   val NickServ = Nick("NickServ")
+
+  def apply(n: String) = new Nick(n)
+  def unapply(n: Nick): Option[String] = Some(n.name)
 }
 case class Channel(name: String) extends AbsChannel
 
