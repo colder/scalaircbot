@@ -21,7 +21,7 @@ abstract class Module extends Actor with RemoteLogger with HelpInfo {
   }
 
   protected def getUser(nick: Nick): Future[Option[User]] = {
-    ctl.ask(SendTo("auth", AuthGetUser(nick)))(10.seconds).mapTo[Option[User]].fallbackTo(Future(None))
+    ctl.ask(SendTo("auth", AuthGetUser(nick)))(15.seconds).mapTo[Option[User]].fallbackTo(Future(None))
   }
 
   def requireGranted(nick: Nick, lvl: UserLevel)(onGranted: => Any) = {
@@ -41,6 +41,7 @@ abstract class Module extends Actor with RemoteLogger with HelpInfo {
           onNotGranted
         }
       case None =>
+        send(Msg(nick, "Did not receive account information from NickServ in time :("))
         onNotGranted
     }
   }
