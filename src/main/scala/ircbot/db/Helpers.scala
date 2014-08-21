@@ -50,6 +50,19 @@ object Helpers {
     } }
   )
 
+  implicit def factoidKindMapper = MappedColumnType.base[FactoidKinds.Kind, String](
+    { _ match {
+      case FactoidKinds.Doc      => "doc"
+      case FactoidKinds.User     => "user"
+      case FactoidKinds.Internal => "internal"
+    } },
+    { _ match {
+      case "doc" => FactoidKinds.Doc
+      case "user" => FactoidKinds.User
+      case "internal" => FactoidKinds.Internal
+    } }
+  )
+
   implicit def durationMapper = MappedColumnType.base[Duration, Long](
     { (d: Duration) => d.getStandardSeconds },
     { i => new Duration(i * 1000) }

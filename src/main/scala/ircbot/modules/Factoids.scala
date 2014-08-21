@@ -77,7 +77,12 @@ class Factoids(val db: Database,
 
   def lookup(name: String): Option[String] = {
     db.withSession { implicit s =>
-      factoidByToken(name).map(_.description).firstOption
+      val of = factoidByToken(name).firstOption
+      of.foreach{ f =>
+        factoidByToken(name).map(_.hits).update(f.hits+1)
+      }
+        
+      of.map(_.description)
     }
   }
 
@@ -85,10 +90,10 @@ class Factoids(val db: Database,
     db.withSession { implicit s =>
       factoidByToken(name).firstOption match {
         case Some(f) =>
-          val newF = f.copy(description = description, dateLastEdit = now())
+          val newF = f.copy(description = description, dateLastEdit = now(), userLastEdit = from.name)
           factoidByToken(name).update(newF)
         case None =>
-          factoids += Factoid(name, description)
+          factoids += Factoid(name, FactoidKinds.User, description, dateLastEdit = now(), userDefined = from.name, userLastEdit = from.name)
       }
     }
   }

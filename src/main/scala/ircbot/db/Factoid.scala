@@ -6,18 +6,29 @@ import org.joda.time.DateTime
 import Helpers._
 
 case class Factoid(token: String,
+                   kind: FactoidKinds.Kind,
                    description: String,
-                   dateLastEdit: DateTime = new DateTime,
-                   hits: Int = 0,
-                   idUser: Int = 0) {
+                   dateLastEdit: DateTime,
+                   userDefined: String,
+                   userLastEdit: String,
+                   hits: Int = 0) {
 }
 
 class Factoids(t: Tag) extends Table[Factoid](t, "irc_factoids") {
   def token                 = column[String]("token", O.PrimaryKey)
+  def kind                  = column[FactoidKinds.Kind]("kind")
   def description           = column[String]("description")
   def dateLastEdit          = column[DateTime]("date_lastedit")
   def hits                  = column[Int]("hits")
-  def idUser                = column[Int]("id_user")
+  def userDefined           = column[String]("user_defined")
+  def userLastEdit          = column[String]("user_lastedit")
 
-  def * = (token, description, dateLastEdit, hits, idUser) <> (Factoid.tupled, Factoid.unapply _)
+  def * = (token, kind, description, dateLastEdit, userDefined, userLastEdit, hits) <> (Factoid.tupled, Factoid.unapply _)
+}
+
+object FactoidKinds {
+  abstract class Kind
+  case object Doc extends Kind
+  case object User extends Kind
+  case object Internal extends Kind
 }
