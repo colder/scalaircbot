@@ -2,9 +2,10 @@ package ircbot
 package modules
 
 import akka.actor._
-import scala.slick.driver.MySQLDriver.simple._
+import slick.driver.MySQLDriver.api._
 import utils._
 import InnerProtocol._
+import scala.concurrent.Future
 
 import db.Helpers._
 import db._
@@ -19,11 +20,11 @@ class Factoids(val db: Database,
         msg.split("[:, ]? ?!\\+", 2).toList match {
           case prefix :: fact :: Nil =>
             ifGranted(nick, Regular) {
-              lookup(fact).foreach { factoid =>
+              for (of <- lookup(fact); f <- of) {
                 if (prefix.nonEmpty) {
-                  send(Msg(chan, prefix+", "+factoid))
+                  send(Msg(chan, prefix+", "+f))
                 } else {
-                  send(Msg(chan, factoid))
+                  send(Msg(chan, f))
                 }
               }
             } {
@@ -54,20 +55,23 @@ class Factoids(val db: Database,
           }
         case "!search" :: fact :: Nil =>
           requireGranted(nick, Regular) {
-            search(fact) match {
-              case fact :: Nil =>
-                send(Msg(nick, "Found 1 result: "+fact.token+" := "+fact.description))
+            for (results <- search(fact)) {
+              results match {
+                case fact :: Nil =>
+                  send(Msg(nick, "Found 1 result: "+fact.token+" := "+fact.description))
 
-              case Nil =>
-                send(Msg(nick, "Found 0 result"))
+                case Nil =>
+                  send(Msg(nick, "Found 0 result"))
 
-              case facts =>
-              send(Msg(nick, "Found "+facts.size+" results: "+facts.map(_.token).take(10).mkString(", ")+(if(facts.size > 10) "..." else "")))
+                case facts =>
+                  send(Msg(nick, "Found "+facts.size+" results: "+facts.map(_.token).take(10).mkString(", ")+(if(facts.size > 10) "..." else "")))
+              }
             }
           }
         case _ if !msg.startsWith("!") =>
-          lookup(msg).orElse(Some("?")).foreach { factoid =>
-            send(Msg(nick, factoid))
+          for (of <- lookup(msg)) {
+            val answer = of.getOrElse("?")
+            send(Msg(nick, answer))
           }
         case _ =>
       }
@@ -75,39 +79,37 @@ class Factoids(val db: Database,
       super.receive(m)
   }
 
-  def lookup(name: String): Option[String] = {
-    db.withSession { implicit s =>
-      val of = factoidByToken(name).firstOption
-      of.foreach{ f =>
-        factoidByToken(name).map(_.hits).update(f.hits+1)
-      }
-        
-      of.map(_.description)
+  def lookup(name: String): Future[Option[String]] = {
+    // Increment hits
+    val qhits = factoidByToken(name).map(_.hits)
+    for (oh <- db.run(qhits.result.headOption); h <- oh) {
+      db.run(qhits.update(h+1))
     }
+
+    // return description
+    db.run(factoidByToken(name).map(_.description).result.headOption)
   }
 
   def define(from: Nick, name: String, description: String): Unit = {
-    db.withSession { implicit s =>
-      factoidByToken(name).firstOption match {
+    for (of <- db.run(factoidByToken(name).result.headOption)) {
+      of match {
         case Some(f) =>
-          val newF = f.copy(description = description, dateLastEdit = now(), userLastEdit = from.name)
-          factoidByToken(name).update(newF)
+          val q = factoidByToken(name).map(f => (f.description, f.dateLastEdit, f.userLastEdit))
+          db.run(q.update((description, now(), from.name)))
+
         case None =>
-          factoids += Factoid(name, FactoidKinds.User, description, dateLastEdit = now(), userDefined = from.name, userLastEdit = from.name)
+          db.run(factoids += Factoid(name, FactoidKinds.User, description, now(), 0, from.name, from.name))
       }
+
     }
   }
 
   def undefine(name: String): Unit = {
-    db.withSession { implicit s =>
-      factoidByToken(name).delete
-    }
+    db.run(factoidByToken(name).delete)
   }
 
-  def search(name: String): List[Factoid] = {
-    db.withSession { implicit s =>
-      factoids.filter(_.description like s"%$name%").list
-    }
+  def search(name: String): Future[Seq[Factoid]] = {
+    db.run(factoids.filter(_.description like s"%$name%").result)
   }
 
   override val helpEntries = List(

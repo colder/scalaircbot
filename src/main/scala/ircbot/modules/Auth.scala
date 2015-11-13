@@ -5,7 +5,7 @@ import akka.actor._
 
 import org.joda.time.Period
 
-import scala.slick.driver.MySQLDriver.simple._
+import slick.driver.MySQLDriver.api._
 import db.Helpers._
 import db.User
 
@@ -27,22 +27,23 @@ class Auth(val db: Database,
           val nick    = Nick(rawNick.replaceAll("\\p{C}", ""))
           val account = rawAccount.replaceAll("\\p{C}", "")
 
-          val lvl = db.withSession { implicit s =>
-            (for {
-              u <- users if u.account === account
-            } yield(u.userLevel)).firstOption.getOrElse(Guest)
+          val q = users.filter(_.account === account).map(_.userLevel)
+
+
+          for (olvl <- db.run(q.result.headOption)) {
+            val lvl = olvl.getOrElse(Guest)
+
+            logInfo(s"Authenticated ${nick.name} (account: $account) to level: $lvl")
+
+            val user = User(account, lvl)
+            cache += nick -> user
+
+            requests.getOrElse(nick, Set()).foreach { aref =>
+              aref ! Some(user)
+            }
+
+            requests -= nick
           }
-
-          logInfo(s"Authenticated ${nick.name} (account: $account) to level: $lvl")
-
-          val user = User(account, lvl)
-          cache += nick -> user
-
-          requests.getOrElse(nick, Set()).foreach { aref =>
-            aref ! Some(user)
-          }
-
-          requests -= nick
 
         case _ =>
 

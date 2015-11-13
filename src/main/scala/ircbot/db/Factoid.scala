@@ -1,7 +1,7 @@
 package ircbot
 package db
 
-import scala.slick.driver.MySQLDriver.simple._
+import slick.driver.MySQLDriver.api._
 import org.joda.time.DateTime
 import Helpers._
 
@@ -9,10 +9,10 @@ case class Factoid(token: String,
                    kind: FactoidKinds.Kind,
                    description: String,
                    dateLastEdit: DateTime,
+                   hits: Int,
                    userDefined: String,
-                   userLastEdit: String,
-                   hits: Int = 0) {
-}
+                   userLastEdit: String
+                 )
 
 class Factoids(t: Tag) extends Table[Factoid](t, "irc_factoids") {
   def token                 = column[String]("token", O.PrimaryKey)
@@ -23,8 +23,9 @@ class Factoids(t: Tag) extends Table[Factoid](t, "irc_factoids") {
   def userDefined           = column[String]("user_defined")
   def userLastEdit          = column[String]("user_lastedit")
 
-  def * = (token, kind, description, dateLastEdit, userDefined, userLastEdit, hits) <> (Factoid.tupled, Factoid.unapply _)
+  def * = (token, kind, description, dateLastEdit, hits, userDefined, userLastEdit) <> (Factoid.tupled, Factoid.unapply _)
 }
+
 
 object FactoidKinds {
   abstract class Kind

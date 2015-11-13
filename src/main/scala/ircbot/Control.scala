@@ -3,8 +3,7 @@ package ircbot
 import utils._
 import akka.actor._
 
-import scala.slick.driver.MySQLDriver.simple._
-import org.apache.commons.dbcp2.BasicDataSource
+import slick.driver.MySQLDriver.api._
 import modules._
 
 import InnerProtocol._
@@ -19,18 +18,7 @@ class Control(val cfg: Config) extends Actor with RemoteLogger {
   val logger = context.actorOf(Props(new Logger(cfg)))
 
   /* Database connection */
-  val dataSource = {
-    val ds = new BasicDataSource
-    ds.setUsername(cfg.dbUser)
-    ds.setPassword(cfg.dbPass)
-    ds.setMaxIdle(5);
-    ds.setInitialSize(1);
-    ds.setValidationQuery("SELECT 1 FROM irc_factoids")
-    ds.setUrl("jdbc:mysql://" + cfg.dbHost+ ":" + cfg.dbPort + "/"+cfg.dbDatabase)
-    ds
-  }
-
-  val db = Database.forDataSource(dataSource);
+  val db = Database.forConfig("db");
 
   var modules: Map[String, ActorRef] = Map(
     "protocol" -> context.actorOf(Props(new Protocol(cfg, self))),
@@ -107,6 +95,6 @@ class Control(val cfg: Config) extends Actor with RemoteLogger {
 
   def initializeConnection() {
     val cName = "connection"+ConnectionCounter.getNext
-    c = context.actorOf(Props(new Connection(cfg.hostHost, cfg.hostPort, logger, self, cName)), name = cName)
+    c = context.actorOf(Props(new Connection(cfg.serverHost, cfg.serverPort, logger, self, cName)), name = cName)
   }
 }

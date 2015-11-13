@@ -1,6 +1,5 @@
 package ircbot;
 
-import scala.xml._
 import akka.actor._
 
 import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension
@@ -11,15 +10,20 @@ object Main {
     if (args.length < 1) {
         usage
     } else {
-        val system  = ActorSystem("ircbot")
-        val control = system.actorOf(Props(new Control(new Config(args(0)))), name = "control")
+        Config.forConfig(args(0)) match {
+          case Some(cfg) =>
+            val system  = ActorSystem("ircbot")
+            val control = system.actorOf(Props(new Control(cfg)), name = "control")
 
-        val scheduler = QuartzSchedulerExtension(system)
+            val scheduler = QuartzSchedulerExtension(system)
 
-        scheduler.schedule("Ticker", control, Tick)
-        scheduler.schedule("GC", control, GC)
+            scheduler.schedule("Ticker", control, Tick)
+            scheduler.schedule("GC", control, GC)
 
-        control ! Init
+            control ! Init
+          case None =>
+            println("Configuration not found for run-mode: "+args(0));
+        }
     }
   }
 

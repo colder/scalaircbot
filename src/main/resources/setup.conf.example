@@ -1,0 +1,29 @@
+dev {
+    irc {
+        server {
+            host = "irc.freenode.org"
+            port = 6667
+        }
+
+        auth {
+            nick = "the-nick"
+            pass = "the-pass"
+            realname = "the-name"
+            ident = "the-ident"
+        }
+
+        perform = [
+            "#test"
+        ]
+    }
+}
+
+db {
+    driver=com.mysql.jdbc.Driver
+    url="jdbc:mysql://host:3306/ircbot"
+    user="user"
+    password="pass"
+    idleMaxAge = 30
+    maxConnectionAge = 30000
+    connectionTestStatement = "/* ping */ SELECT 1"
+}

@@ -33,7 +33,7 @@ abstract class Module extends Actor with RemoteLogger with HelpInfo {
   }
 
   def ifGranted[T](nick: Nick, lvl: UserLevel)(onGranted: => T)(onNotGranted: => T): Future[T] = {
-    getUser(nick).map { 
+    getUser(nick).map {
       case Some(u) =>
         if (u.userLevel >= lvl) {
           onGranted

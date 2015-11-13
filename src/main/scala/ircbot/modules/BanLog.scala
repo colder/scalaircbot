@@ -5,8 +5,7 @@ import akka.actor._
 import org.joda.time.{DateTime, Duration}
 import org.joda.time.format._
 
-import scala.slick.driver.MySQLDriver.simple._
-import scala.concurrent.ExecutionContext.Implicits.global
+import slick.driver.MySQLDriver.api._
 import utils._
 import InnerProtocol._
 
@@ -129,49 +128,58 @@ class BanLog(val db: Database,
   }
 
   def doBan(ofrom: Option[Nick], tpe: BanType, admin: User, user: User, duration: Duration, reason: String) {
-    db.withSession { implicit s =>
-      val q = getExistingQ(user)
-      q.firstOption match {
+    val q = getExistingBan(user)
+
+    for (ob <- db.run(q.result.headOption)) {
+      ob match {
         case Some(b) =>
           val nb = b.copy(duration = duration, tpe = tpe, reason = reason, dateStart = now(), accountAdmin = admin.account)
           ofrom.foreach { from =>
             send(Msg(from, "Updated entry:"))
             send(Msg(from, getBanDesc(nb)))
           }
-          q.update(nb)
+
+
+          db.run(q.update(nb))
         case None =>
           requireOP(chan) {
-            db.withSession { implicit s =>
-              val nb = DBBanLog(None, admin.account, user.account, tpe, now(), duration, None, reason)
-              ofrom.foreach { from =>
-                send(Msg(from, "New entry:"))
-                send(Msg(from, getBanDesc(nb)))
-              }
-              banlogs += nb
-              import Modes._
-              val m = if (tpe == Mute) Q(AccountMask(user.account)) else B(AccountMask(user.account))
-              send(Mode(chan, List(Plus(m))))
+            val nb = DBBanLog(None, admin.account, user.account, tpe, now(), duration, None, reason)
+            ofrom.foreach { from =>
+              send(Msg(from, "New entry:"))
+              send(Msg(from, getBanDesc(nb)))
             }
+            db.run(banlogs += nb)
+
+            // Do the ban
+            import Modes._
+            val m = if (tpe == Mute) {
+              Q(AccountMask(user.account))
+            } else {
+              B(AccountMask(user.account))
+            }
+            send(Mode(chan, List(Plus(m))))
           }
       }
     }
   }
 
   def doUnban(from: Nick, user: User) {
-    db.withSession { implicit s =>
-      val q = getExistingQ(user)
-      q.firstOption match {
+    val q = getExistingBan(user)
+    for (ob <- db.run(q.result.headOption)) {
+      ob match {
         case Some(b) =>
           requireOP(chan) {
-            db.withSession { implicit s =>
-              import Modes._
-              val nb = b.copy(dateEnd = Some(now()))
-              send(Msg(from, "Removed "+b.tpe+" for "+user.account))
-              q.update(nb)
+            import Modes._
+            val nb = b.copy(dateEnd = Some(now()))
+            send(Msg(from, "Removed "+b.tpe+" for "+user.account))
+            db.run(q.update(nb))
 
-              val m = if (b.tpe == Mute) Q(AccountMask(user.account)) else B(AccountMask(user.account))
-              send(Mode(chan, List(Minus(m))))
+            val m = if (b.tpe == Mute) {
+              Q(AccountMask(user.account))
+            } else {
+              B(AccountMask(user.account))
             }
+            send(Mode(chan, List(Minus(m))))
           }
         case None =>
           send(Msg(from, "No entry found for account "+user.account))
@@ -191,15 +199,15 @@ class BanLog(val db: Database,
     f" ${b.tpe}%-4s ${b.accountUser}%-20s ${dateToString(b.dateStart)} $end%-25s  Reason: ${b.reason}"
   }
 
-  def getExistingQ(user: User): Query[DBBanLogs, DBBanLog] = {
+  def getExistingBan(user: User): Query[DBBanLogs, DBBanLog, Seq] = {
     for {
-      b <- banlogs if b.dateEnd.isNull && b.accountUser === user.account
+      b <- banlogs if b.dateEnd.isEmpty && b.accountUser === user.account
     } yield (b)
   }
 
   def banHistory(from: Nick, user: User) {
-    db.withSession { implicit s =>
-      val results = banlogs.filter(_.accountUser === user.account).sortBy(_.dateStart).list
+    val q = banlogs.filter(_.accountUser === user.account).sortBy(_.dateStart)
+    for (results <- db.run(q.result)) {
       results.foreach { b =>
         send(Msg(from, getBanDesc(b)))
       }
@@ -211,34 +219,36 @@ class BanLog(val db: Database,
   }
 
   def banStatus(from: Nick){
-    db.withSession { implicit s =>
-      val results = banlogs.filter(_.dateEnd.isNull).sortBy(_.dateStart.desc).list
+    val q = banlogs.filter(_.dateEnd.isEmpty).sortBy(_.dateStart.desc)
+    for (results <- db.run(q.result)) {
       results.take(10).foreach { b =>
         send(Msg(from, getBanDesc(b)))
       }
       if (results.size > 10) {
         send(Msg(from, s"...${results.size} more"))
-      }
-
-      if (results.isEmpty) {
+      } else if (results.isEmpty) {
         send(Msg(from, "No active ban entry found"))
       }
     }
   }
 
   def removeElapsedBans {
-    db.withSession { implicit s =>
-      for (b <- banlogs.filter(_.dateEnd.isNull).list) {
-        if (!b.isPermanent && b.remaining.getMillis < 0) {
-          import Modes._
-          val q = banlogs.filter(_.id === b.id).map(_.dateEnd)
-          q.update(Some(now()))
+    val q = banlogs.filter(_.dateEnd.isEmpty)
 
-          logInfo("Removed "+b.tpe+" for "+b.accountUser)
+    for (bs <- db.run(q.result); b <- bs) {
+      if (!b.isPermanent && b.remaining.getMillis < 0) {
+        val q = banlogs.filter(_.id === b.id).map(_.dateEnd)
+        db.run(q.update(Some(now())))
 
-          val m = if (b.tpe == Mute) Q(AccountMask(b.accountUser)) else B(AccountMask(b.accountUser))
-          send(Mode(chan, List(Minus(m))))
+        logInfo("Removed "+b.tpe+" for "+b.accountUser)
+
+        import Modes._
+        val m = if (b.tpe == Mute) {
+          Q(AccountMask(b.accountUser))
+        } else {
+          B(AccountMask(b.accountUser))
         }
+        send(Mode(chan, List(Minus(m))))
       }
     }
   }

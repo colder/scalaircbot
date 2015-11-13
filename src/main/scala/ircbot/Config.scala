@@ -1,25 +1,39 @@
 package ircbot;
 
-import scala.xml._
+import com.typesafe.config._
+import scala.collection.JavaConversions._
 
-class Config(path: String) {
-  private val data = XML.loadFile(path)
-  private val db = (data \ "db").head
-  val dbUser = (db \ "@user").text
-  val dbPass = (db \ "@pass").text
-  val dbDatabase = (db \ "@database").text
-  val dbHost = (db \ "@host").text
-  val dbPort = (db \ "@port").text.toInt
+case class Config(
+  serverHost: String,
+  serverPort: Int,
 
-  private val host = (data \ "host").head
-  val hostHost = (host \ "@host").text
-  val hostPort = Integer.parseInt((host \ "@port").text)
+  authNick: Nick,
+  authIdent: Ident,
+  authPass: String,
+  authRealName: String,
 
-  private val auth = (data \ "auth").head
-  val authNick = Nick((auth \ "@nick").text)
-  val authIdent = Ident((auth \ "@ident").text)
-  val authPass = (auth \ "@pass").text
-  val authRealName = (auth \ "@realname").text
+  channels: List[Channel]
+)
 
-  val channels = { (data \ "perform" \ "channel") map { c => Channel(c.text)} }
+object Config {
+  def forConfig(key: String): Option[Config] = {
+    try {
+      val cfg = ConfigFactory.load().getConfig(key)
+
+      Some(Config(
+        serverHost   = cfg.getString("irc.server.host"),
+        serverPort   = cfg.getInt("irc.server.port"),
+
+        authNick     = Nick(cfg.getString("irc.auth.nick")),
+        authIdent    = Ident(cfg.getString("irc.auth.ident")),
+        authPass     = cfg.getString("irc.auth.pass"),
+        authRealName = cfg.getString("irc.auth.realname"),
+
+        channels     = cfg.getStringList("irc.perform").toList.map(Channel(_))
+      ))
+    } catch {
+      case _: RuntimeException =>
+        None
+    }
+  }
 }

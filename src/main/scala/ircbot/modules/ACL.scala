@@ -3,7 +3,7 @@ package modules
 
 import akka.actor._
 
-import scala.slick.driver.MySQLDriver.simple._
+import slick.driver.MySQLDriver.api._
 import db.Helpers._
 import db.User
 
@@ -21,16 +21,11 @@ class ACL(val db: Database,
           requireGranted(nick, Administrator) {
             extractLevel(level) match {
               case Some(newLevel) =>
-                db.withSession { implicit s =>
-                  val uq = users.filter(_.account === account)
-                  uq.firstOption match {
-                    case Some(u) =>
-                      uq.update(u.copy(userLevel = newLevel))
-                    case None =>
-                      users += User(account, newLevel)
-                  }
-                  send(Msg(nick, s"Granted level $newLevel to account $account"))
-                }
+
+                db.run(users.insertOrUpdate(User(account, newLevel)))
+
+                send(Msg(nick, s"Granted level $newLevel to account $account"))
+
               case None =>
                 send(Msg(nick, s"Unknown level $level"))
             }
@@ -38,17 +33,21 @@ class ACL(val db: Database,
         case _ => words(msg, 2) match {
           case "!revoke" :: account :: Nil =>
             requireGranted(nick, Administrator) {
-              db.withSession { implicit s =>
+
+              db.run(
                 users.filter(_.account === account).delete
-                send(Msg(nick, s"Access revoked to $account"))
-              }
+              )
+
+              send(Msg(nick, s"Access revoked to $account"))
             }
           case "!acl" :: level :: Nil =>
             requireGranted(nick, Administrator) {
               extractLevel(level) match {
                 case Some(level) =>
-                  db.withSession { implicit s =>
-                    val res = users.filter(_.userLevel === level).sortBy(_.account).list
+
+                  val q = users.filter(_.userLevel === level).sortBy(_.account)
+
+                  for (res <- db.run(q.result)) {
                     if (res.isEmpty) {
                       send(Msg(nick, f"no result found"))
                     } else {
@@ -60,9 +59,12 @@ class ACL(val db: Database,
                       }
                     }
                   }
+
                 case None =>
-                  db.withSession { implicit s =>
-                    users.filter(_.account === level).firstOption match {
+                  val q = users.filter(_.account === level)
+
+                  for (res <- db.run(q.result.headOption)) {
+                    res match {
                       case Some(u) =>
                         send(Msg(nick, f"${u.account}%-20s ${u.userLevel}"))
                       case None =>

@@ -1,7 +1,7 @@
 package ircbot
 package db
 
-import scala.slick.driver.MySQLDriver.simple._
+import slick.driver.MySQLDriver.api._
 import org.joda.time.{DateTime, Duration}
 import Helpers._
 import BanTypes._
