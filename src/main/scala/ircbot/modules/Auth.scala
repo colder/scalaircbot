@@ -24,8 +24,8 @@ class Auth(val db: Database,
 
       msg match {
         case NickIdent(rawNick, rawAccount) =>
-          val nick    = Nick(rawNick.replaceAll("\\p{C}", ""))
-          val account = rawAccount.replaceAll("\\p{C}", "")
+          val nick    = Nick(rawNick.replaceAll("[^\\p{Graph}]", ""))
+          val account = rawAccount.replaceAll("[^\\p{Graph}]", "")
 
           val q = users.filter(_.account === account).map(_.userLevel)
 
