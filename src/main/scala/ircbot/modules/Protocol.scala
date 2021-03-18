@@ -90,6 +90,15 @@ class Protocol(val cfg: Config,
         logInfo("Current bot nick set to "+state.lastTried.name)
       }
 
+    case From(NickMask(nick), Msg(to: Nick, msg)) if to != nick =>
+      words(msg, 1) match {
+        case "!identify" :: Nil =>
+          requireGranted(nick, Administrator) {
+            send(Msg(Nick.NickServ, s"IDENTIFY ${cfg.authPass}"))
+          }
+        case _ =>
+      }
+
     case From(_, Ping(msg)) =>
       send(Pong(msg))
 
@@ -99,7 +108,6 @@ class Protocol(val cfg: Config,
     case m =>
       super.receive(m)
   }
-
 
   def doRegister() {
     if (cfg.authPass != "") {
