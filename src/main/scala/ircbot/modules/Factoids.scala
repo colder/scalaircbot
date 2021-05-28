@@ -19,16 +19,12 @@ class Factoids(val db: Database,
       if (msg.contains("!+")) {
         msg.split("[:, ]? ?!\\+", 2).toList match {
           case prefix :: fact :: Nil =>
-            ifGranted(nick, Regular) {
-              for (of <- lookup(fact); f <- of) {
-                if (prefix.nonEmpty) {
-                  send(Msg(chan, prefix+", "+f))
-                } else {
-                  send(Msg(chan, f))
-                }
+            for (of <- lookup(fact); f <- of) {
+              if (prefix.nonEmpty) {
+                send(Msg(chan, prefix+", "+f))
+              } else {
+                send(Msg(chan, f))
               }
-            } {
-              send(Msg(nick, "This public command can only be used by regulars. You can simply msg me: /msg php-bot "+fact))
             }
           case xs =>
         }

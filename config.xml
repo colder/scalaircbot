@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<ircbot>
- <host host="irc.freenode.org" port="6667" />
- <db host="db_host" port="3306" user="db_username" pass="db_password" database="db_name" />
- <auth nick="irc_nick" pass="chanserv_pass" realname="name" ident="account" />
- <perform>
-  <channel>#channel</channel>
- </perform>
-</ircbot>
